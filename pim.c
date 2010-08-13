@@ -110,7 +110,12 @@ int pim_shutdown(int sock)
 	return EX_OK;
 }
 
-
-void pim_hello_send() {
+void pim_hello_send(void)
+{
 	fprintf(stderr, "%d, sent pim hello\n", (int) time(NULL));
+}
+
+void pim_recv(int sock, char *buf, int len, struct sockaddr *src_addr, socklen_t addrlen)
+{
+	printf("called %s\n", __func__);
 }

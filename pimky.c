@@ -31,6 +31,7 @@
 #include <stdarg.h>
 #include <unistd.h>
 #include <sysexits.h>
+#include <assert.h>
 #include <getopt.h>
 #include <ctype.h>
 #include <libgen.h>
@@ -249,11 +250,15 @@ int main(int argc, char **argv)
 {
 	int			ret = EX_OK;
 	int			mroute4, mroute6;
+	int			i;
 	struct group		*grgid;
 	struct passwd		*pwuid;
 	timer_t			timerid_mld, timerid_pim;
 	struct pollfd		fds[4];
 	nfds_t			nfds = 0;
+	struct sockaddr		src_addr;
+	socklen_t		addrlen;
+	char			*buf;
 
 	if ((ret = parse_args(argc, argv)))
 		return -ret;
@@ -343,18 +348,62 @@ int main(int argc, char **argv)
 
 	if (prime_timers(&timerid_mld, &timerid_pim)) {
 		ret = EX_OSERR;
-		unhooksignals();
-		goto mroute;
+		goto signal;
 	}
 
-	while (running && (ret = poll(fds, nfds, -1))) {
-		if ((ret = -EINTR))
+	buf = malloc(SOCK_BUFLEN);
+	if (!buf) {
+		logger(LOG_ERR, 0, "malloc()");
+		ret = EX_OSERR;
+		goto timer;
+	}
+
+	while (running) {
+		ret = poll(fds, nfds, -1);
+
+		if (ret < 0) {
+			if (errno == EINTR)
+				continue;
+
+			logger(LOG_ERR, errno, "poll()");
+			ret = EX_OSERR;
+			running = 0;
 			continue;
+		}
+
+		for (i = 0; i < nfds; i++) {
+			assert(!(fds[i].revents & (POLLERR | POLLHUP)));
+
+			if (!fds[i].revents)
+				continue;
+
+			if (fds[i].revents & POLLIN) {
+				ret = recvfrom(fds[i].fd, buf, SOCK_BUFLEN, 0, &src_addr, &addrlen);
+				if (ret < 0) {
+					logger(LOG_WARNING, errno, "recvmesg()");
+					continue;
+				}
+
+				if (fds[i].fd == pim4 || fds[i].fd == pim6)
+					pim_recv(fds[i].fd, buf, ret, &src_addr, addrlen);
+				else
+					mld_recv(fds[i].fd, buf, ret, &src_addr, addrlen);
+			} else {
+				logger(LOG_ERR, 0, "poll() returned !POLLIN");
+				ret = EX_OSERR;
+				running = 0;
+				break;
+			}
+		}
 	}
 
+	free(buf);
+
+timer:
 	timer_delete(timerid_mld);
 	timer_delete(timerid_pim);
 
+signal:
 	unhooksignals();
 
 mroute:

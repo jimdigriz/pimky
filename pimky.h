@@ -1,7 +1,9 @@
-#define	VERSION "2010081100"
+#define	VERSION 	"2010081100"
 
-#define	UID	"nobody"
-#define	GID	"nogroup"
+#define	UID		"nobody"
+#define	GID		"nogroup"
+
+#define SOCK_BUFLEN	2048
 
 /* defaults */
 extern int		debug;
@@ -20,7 +22,9 @@ int socktype(int sock);
 /* pim.c */
 int pim_init(int sock);
 int pim_shutdown(int sock);
-void pim_hello_send();
+void pim_hello_send(void);
+void pim_recv(int sock, char *buf, int len, struct sockaddr *src_addr, socklen_t addrlen);
 
 /* mld.c */
-void mld_query_send();
+void mld_query_send(void);
+void mld_recv(int sock, char *buf, int len, struct sockaddr *src_addr, socklen_t addrlen);
