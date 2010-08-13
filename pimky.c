@@ -372,7 +372,11 @@ int main(int argc, char **argv)
 		}
 
 		for (i = 0; i < nfds; i++) {
+			/* TODO handle errors */
 			assert(!(fds[i].revents & (POLLERR | POLLHUP)));
+
+			/* either a non-event or there is something to read */
+			assert(!fds[i].revents || fds[i].revents & POLLIN);
 
 			if (!fds[i].revents)
 				continue;
@@ -388,11 +392,6 @@ int main(int argc, char **argv)
 					pim_recv(fds[i].fd, buf, ret, &src_addr, addrlen);
 				else
 					mld_recv(fds[i].fd, buf, ret, &src_addr, addrlen);
-			} else {
-				logger(LOG_ERR, 0, "poll() returned !POLLIN");
-				ret = EX_OSERR;
-				running = 0;
-				break;
 			}
 		}
 	}
