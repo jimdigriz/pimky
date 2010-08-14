@@ -58,57 +58,6 @@ unsigned int	running	= 1;
 
 int		pim4, pim6;
 
-void unhooksignals(void)
-{
-	/* we ignore signals so we can then cleanly shutdown */
-	struct sigaction action = {
-		.sa_handler	= SIG_IGN,
-		.sa_flags	= 0
-	};
-	sigemptyset(&action.sa_mask);
-
-	sigaction(SIGTERM, &action, NULL);
-	sigaction(SIGINT,  &action, NULL);
-//	sigaction(SIGUSR1, &action, NULL); /* mld */
-	sigaction(SIGUSR2, &action, NULL); /* pim */
-}
-
-void sig_handler(int sig)
-{
-//	if (sig == SIGUSR1) {
-//		mld_query_send();
-//		return;
-//	}
-	if (sig == SIGUSR2) {
-		pim_hello_send();
-		return;
-	}
-
-	unhooksignals();
-	running = 0;
-}
-
-int hooksignals(void)
-{
-	int ret;
-	struct sigaction action = {
-		.sa_handler	= sig_handler,
-		.sa_flags	= 0
-	};
-	sigemptyset(&action.sa_mask);
-
-	if ((ret = sigaction(SIGTERM, &action, NULL)))
-		return ret;
-	if ((ret = sigaction(SIGINT,  &action, NULL)))
-		return ret;
-//	if ((ret = sigaction(SIGUSR1, &action, NULL)))
-//		return ret;
-	if ((ret = sigaction(SIGUSR2, &action, NULL)))
-		return ret;
-
-	return 0;
-}
-
 /* http://www.gnu.org/s/libc/manual/html_node/Getopt.html */
 int parse_args(int argc, char **argv)
 {
@@ -176,6 +125,57 @@ int parse_args(int argc, char **argv)
 		debug = LOG_EMERG;
 	else if (debug > LOG_DEBUG)
 		debug = LOG_DEBUG;
+
+	return 0;
+}
+
+void unhooksignals(void)
+{
+	/* we ignore signals so we can then cleanly shutdown */
+	struct sigaction action = {
+		.sa_handler	= SIG_IGN,
+		.sa_flags	= 0
+	};
+	sigemptyset(&action.sa_mask);
+
+	sigaction(SIGTERM, &action, NULL);
+	sigaction(SIGINT,  &action, NULL);
+//	sigaction(SIGUSR1, &action, NULL); /* mld */
+	sigaction(SIGUSR2, &action, NULL); /* pim */
+}
+
+void sig_handler(int sig)
+{
+//	if (sig == SIGUSR1) {
+//		mld_query_send();
+//		return;
+//	}
+	if (sig == SIGUSR2) {
+		pim_hello_send();
+		return;
+	}
+
+	unhooksignals();
+	running = 0;
+}
+
+int hooksignals(void)
+{
+	int ret;
+	struct sigaction action = {
+		.sa_handler	= sig_handler,
+		.sa_flags	= 0
+	};
+	sigemptyset(&action.sa_mask);
+
+	if ((ret = sigaction(SIGTERM, &action, NULL)))
+		return ret;
+	if ((ret = sigaction(SIGINT,  &action, NULL)))
+		return ret;
+//	if ((ret = sigaction(SIGUSR1, &action, NULL)))
+//		return ret;
+	if ((ret = sigaction(SIGUSR2, &action, NULL)))
+		return ret;
 
 	return 0;
 }
@@ -384,7 +384,7 @@ int main(int argc, char **argv)
 			if (fds[i].revents & POLLIN) {
 				ret = recvfrom(fds[i].fd, buf, SOCK_BUFLEN, 0, &src_addr, &addrlen);
 				if (ret < 0) {
-					logger(LOG_WARNING, errno, "recvmesg()");
+					logger(LOG_WARNING, errno, "recvfrom()");
 					continue;
 				}
 
