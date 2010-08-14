@@ -140,16 +140,16 @@ void unhooksignals(void)
 
 	sigaction(SIGTERM, &action, NULL);
 	sigaction(SIGINT,  &action, NULL);
-//	sigaction(SIGUSR1, &action, NULL); /* mld */
+	sigaction(SIGUSR1, &action, NULL); /* mld */
 	sigaction(SIGUSR2, &action, NULL); /* pim */
 }
 
 void sig_handler(int sig)
 {
-//	if (sig == SIGUSR1) {
-//		mld_query_send();
-//		return;
-//	}
+	if (sig == SIGUSR1) {
+		mld_query_send();
+		return;
+	}
 	if (sig == SIGUSR2) {
 		pim_hello_send();
 		return;
@@ -172,8 +172,8 @@ int hooksignals(void)
 		return ret;
 	if ((ret = sigaction(SIGINT,  &action, NULL)))
 		return ret;
-//	if ((ret = sigaction(SIGUSR1, &action, NULL)))
-//		return ret;
+	if ((ret = sigaction(SIGUSR1, &action, NULL)))
+		return ret;
 	if ((ret = sigaction(SIGUSR2, &action, NULL)))
 		return ret;
 
@@ -188,7 +188,6 @@ int prime_timers(timer_t *mld, timer_t *pim)
 		.sigev_notify	= SIGEV_SIGNAL
 	};
 
-#if 0
 	event.sigev_signo	= SIGUSR1;
 	if (timer_create(CLOCK_MONOTONIC, &event, mld)) {
 		logger(LOG_ERR, errno, "timer_create(mld)");
@@ -202,7 +201,6 @@ int prime_timers(timer_t *mld, timer_t *pim)
 		logger(LOG_ERR, errno, "timer_settime(mld)");
 		goto mld;
 	}
-#endif
 
 	event.sigev_signo	= SIGUSR2;
 	if (timer_create(CLOCK_MONOTONIC, &event, pim)) {
@@ -212,6 +210,7 @@ int prime_timers(timer_t *mld, timer_t *pim)
 
 	/* rand() might return not enough bits to make use of */
 	srand(time(NULL));
+	/* TODO test this works */
 	do {
 		rand_tot <<= (__builtin_clz(0) - __builtin_clz((unsigned int) RAND_MAX));
 		rand_tot +=  rand();
@@ -234,7 +233,7 @@ int prime_timers(timer_t *mld, timer_t *pim)
 pim:
 	timer_delete(*pim);
 mld:
-//	timer_delete(*mld);
+	timer_delete(*mld);
 	return EX_OSERR;
 }
 
