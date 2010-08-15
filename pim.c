@@ -21,35 +21,41 @@ int pim_init(int sock)
 	struct icmp6_filter	filter;
 	int			pim;
 
-	if ((type = socktype(sock)) < 0)
+	type = socktype(sock);
+	if (type < 0)
 		return type;
 
 	switch (type) {
 	case AF_INET:
-		if ((ret = setsockopt(sock, IPPROTO_IP, MRT_INIT, (void *)&v, sizeof(v))) < 0) {
+		ret = setsockopt(sock, IPPROTO_IP, MRT_INIT, (void *)&v, sizeof(v));
+		if (ret < 0) {
 			logger(LOG_ERR, errno, "%s(): setsockopt(MRT_INIT)", __func__);
 			return ret;
 		}
 
-		if ((ret = setsockopt(sock, IPPROTO_IP, MRT_PIM, (void *)&v, sizeof(v))) < 0) {
+		ret = setsockopt(sock, IPPROTO_IP, MRT_PIM, (void *)&v, sizeof(v));
+		if (ret < 0) {
 			logger(LOG_ERR, errno, "%s(): setsockopt(MRT_PIM)", __func__);
 			return ret;
 		}
 
 		break;
 	case AF_INET6:
-		if ((ret = setsockopt(sock, IPPROTO_IPV6, MRT6_INIT, (void *)&v, sizeof(v))) < 0) {
+		ret = setsockopt(sock, IPPROTO_IPV6, MRT6_INIT, (void *)&v, sizeof(v));
+		if (ret < 0) {
 			logger(LOG_ERR, errno, "%s(): setsockopt(MRT6_INIT)", __func__);
 			return ret;
 		}
 
 		ICMP6_FILTER_SETBLOCKALL(&filter);
-		if ((ret = setsockopt(sock, IPPROTO_ICMPV6, ICMP6_FILTER, (void *)&filter, sizeof(filter))) < 0) {
+		ret = setsockopt(sock, IPPROTO_ICMPV6, ICMP6_FILTER, (void *)&filter, sizeof(filter));
+		if (ret < 0) {
 			logger(LOG_ERR, errno, "%s(): setsockopt(ICMP6_FILTER)", __func__);
 			return ret;
 		}
 
-		if ((ret = setsockopt(sock, IPPROTO_IPV6, MRT6_PIM, (void *)&v, sizeof(v))) < 0) {
+		ret = setsockopt(sock, IPPROTO_IPV6, MRT6_PIM, (void *)&v, sizeof(v));
+		if (ret < 0) {
 			logger(LOG_ERR, errno, "%s(): setsockopt(MRT6_PIM)", __func__);
 			return ret;
 		}
@@ -60,7 +66,8 @@ int pim_init(int sock)
 		return -EX_SOFTWARE;
 	}
 
-	if ((pim = socket(type, SOCK_RAW, IPPROTO_PIM)) < 0) {
+	pim = socket(type, SOCK_RAW, IPPROTO_PIM);
+	if (pim < 0) {
 		logger(LOG_ERR, errno, "%s(): socket(AF_INET, SOCK_RAW, IPPROTO_PIM)", __func__);
 		return -EX_OSERR;
 	}
@@ -74,29 +81,34 @@ int pim_shutdown(int sock)
 	int			v = 0;
 	int			ret;
 
-	if ((type = socktype(sock)) < 0)
+	type = socktype(sock);
+	if (type < 0)
 		return type;
 
 	switch (type) {
 	case AF_INET:
-		if ((ret = setsockopt(sock, IPPROTO_IP, MRT_PIM, (void *)&v, sizeof(v))) < 0) {
+		ret = setsockopt(sock, IPPROTO_IP, MRT_PIM, (void *)&v, sizeof(v));
+		if (ret < 0) {
 			logger(LOG_ERR, errno, "%s(): setsockopt(MRT_PIM)", __func__);
 			return ret;
 		}
 
-		if ((ret = setsockopt(sock, IPPROTO_IP, MRT_DONE, (void *)NULL, 0)) < 0) {
+		ret = setsockopt(sock, IPPROTO_IP, MRT_DONE, (void *)NULL, 0);
+		if (ret < 0) {
 			logger(LOG_ERR, errno, "%s(): setsockopt(MRT_INIT)", __func__);
 			return ret;
 		}
 
 		break;
 	case AF_INET6:
-		if ((ret = setsockopt(sock, IPPROTO_IPV6, MRT6_PIM, (void *)&v, sizeof(v))) < 0) {
+		ret = setsockopt(sock, IPPROTO_IPV6, MRT6_PIM, (void *)&v, sizeof(v));
+		if (ret < 0) {
 			logger(LOG_ERR, errno, "%s(): setsockopt(MRT6_PIM)", __func__);
 			return ret;
 		}
 
-		if ((ret = setsockopt(sock, IPPROTO_IPV6, MRT6_DONE, (void *)NULL, 0)) < 0) {
+		ret = setsockopt(sock, IPPROTO_IPV6, MRT6_DONE, (void *)NULL, 0);
+		if (ret < 0) {
 			logger(LOG_ERR, errno, "%s(): setsockopt(MRT6_INIT)", __func__);
 			return ret;
 		}
@@ -115,7 +127,8 @@ void pim_hello_send(void)
 	fprintf(stderr, "%d, sent pim hello\n", (int) time(NULL));
 }
 
-void pim_recv(int sock, char *buf, int len, struct sockaddr *src_addr, socklen_t addrlen)
+void pim_recv(int sock, char *buf, int len,
+		struct sockaddr *src_addr, socklen_t addrlen)
 {
 	printf("called %s\n", __func__);
 }

@@ -22,12 +22,14 @@ void logger(int severity, int syserr, const char *format, ...)
 	va_start(ap, format);
 
 	while (1) {
-		if (!(buf = realloc(buf, bufsize))) {
+		buf = realloc(buf, bufsize);
+		if (!buf) {
 			syslog(LOG_CRIT, "realloc() for syslog");
 			goto free;
 		}
 
-		if ((ret = vsnprintf(buf, bufsize, format, ap)) < 0 ) {
+		ret = vsnprintf(buf, bufsize, format, ap);
+		if (ret < 0) {
 			syslog(LOG_CRIT, "vsnprintf() for syslog");
 			goto free;
 		}
@@ -48,7 +50,8 @@ free:
 	va_end(ap);
 }
 
-int socktype(int sock) {
+int socktype(int sock)
+{
 	struct sockaddr	addr;
 	socklen_t	len = sizeof(addr);
 

@@ -1,4 +1,4 @@
-#define	VERSION 	"2010081100"
+#define	VERSION		"2010081100"
 
 #define	UID		"nobody"
 #define	GID		"nogroup"
@@ -20,11 +20,11 @@ void logger(int severity, int syserr, const char *format, ...);
 int socktype(int sock);
 
 /* pim.c */
-int pim_init(int sock);
-int pim_shutdown(int sock);
+int pim_init(int);
+int pim_shutdown(int);
 void pim_hello_send(void);
-void pim_recv(int sock, char *buf, int len, struct sockaddr *src_addr, socklen_t addrlen);
+void pim_recv(int, char *, int, struct sockaddr *, socklen_t);
 
 /* mld.c */
 void mld_query_send(void);
-void mld_recv(int sock, char *buf, int len, struct sockaddr *src_addr, socklen_t addrlen);
+void mld_recv(int, char *, int, struct sockaddr *, socklen_t);

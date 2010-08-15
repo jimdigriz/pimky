@@ -13,8 +13,9 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ * along with this program; if not, write to the
+ * Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+ * Boston, MA 02110-1301, USA
  * or alternatively visit <http://www.gnu.org/licenses/gpl.html>
  */
 
@@ -50,7 +51,7 @@
 #include "pimky.h"
 
 int		debug	= LOG_NOTICE;
-unsigned int	nofork	= 0;
+unsigned int	nofork;	/* zero */
 char		*uid	= UID;
 char		*gid	= GID;
 
@@ -62,9 +63,9 @@ int		pim4, pim6;
 int parse_args(int argc, char **argv)
 {
 	int c;
-     
+
 	opterr = 0;
-     
+
 	while ((c = getopt(argc, argv, "nu:g:vqVh")) != -1)
 	switch (c) {
 	case 'n':
@@ -129,19 +130,36 @@ int parse_args(int argc, char **argv)
 	return 0;
 }
 
-void unhooksignals(void)
+int signals(void (*handler)(int))
 {
-	/* we ignore signals so we can then cleanly shutdown */
+	int ret;
 	struct sigaction action = {
-		.sa_handler	= SIG_IGN,
+		.sa_handler	= handler,
 		.sa_flags	= 0
 	};
 	sigemptyset(&action.sa_mask);
 
-	sigaction(SIGTERM, &action, NULL);
-	sigaction(SIGINT,  &action, NULL);
-	sigaction(SIGUSR1, &action, NULL); /* mld */
-	sigaction(SIGUSR2, &action, NULL); /* pim */
+	ret = sigaction(SIGTERM, &action, NULL);
+	if (ret)
+		goto err;
+	ret = sigaction(SIGTERM, &action, NULL);
+	if (ret)
+		goto err;
+	ret = sigaction(SIGINT,  &action, NULL);
+	if (ret)
+		goto err;
+	ret = sigaction(SIGUSR1, &action, NULL);
+	if (ret)
+		goto err;
+	ret = sigaction(SIGUSR2, &action, NULL);
+	if (ret)
+		goto err;
+
+	return 0;
+
+err:
+	logger(LOG_ERR, errno, "unable to sigaction() all signals");
+	return -EX_OSERR;
 }
 
 void sig_handler(int sig)
@@ -155,29 +173,8 @@ void sig_handler(int sig)
 		return;
 	}
 
-	unhooksignals();
 	running = 0;
-}
-
-int hooksignals(void)
-{
-	int ret;
-	struct sigaction action = {
-		.sa_handler	= sig_handler,
-		.sa_flags	= 0
-	};
-	sigemptyset(&action.sa_mask);
-
-	if ((ret = sigaction(SIGTERM, &action, NULL)))
-		return ret;
-	if ((ret = sigaction(SIGINT,  &action, NULL)))
-		return ret;
-	if ((ret = sigaction(SIGUSR1, &action, NULL)))
-		return ret;
-	if ((ret = sigaction(SIGUSR2, &action, NULL)))
-		return ret;
-
-	return 0;
+	signals(SIG_IGN);
 }
 
 int prime_timers(timer_t *mld, timer_t *pim)
@@ -191,7 +188,7 @@ int prime_timers(timer_t *mld, timer_t *pim)
 	event.sigev_signo	= SIGUSR1;
 	if (timer_create(CLOCK_MONOTONIC, &event, mld)) {
 		logger(LOG_ERR, errno, "timer_create(mld)");
-		return errno;
+		return -EX_OSERR;
 	}
 	timer.it_value.tv_sec		= RFC3376_RFC3810_Query_Interval;
 	timer.it_value.tv_nsec		= 0;
@@ -217,7 +214,7 @@ int prime_timers(timer_t *mld, timer_t *pim)
 
 		rand_max <<= (__builtin_clz(0) - __builtin_clz((unsigned int) RAND_MAX));
 	} while (rand_max < (RFC4601_Triggered_Hello_Delay * (int) 1e6));
-	timer.it_value.tv_nsec 		= rand_tot % (RFC4601_Triggered_Hello_Delay * (int) 1e6);
+	timer.it_value.tv_nsec		= rand_tot % (RFC4601_Triggered_Hello_Delay * (int) 1e6);
 
 	timer.it_value.tv_sec		= (time_t) timer.it_value.tv_nsec / 1e6;
 	timer.it_value.tv_nsec		= timer.it_value.tv_nsec % (int) 1e6;
@@ -234,7 +231,7 @@ pim:
 	timer_delete(*pim);
 mld:
 	timer_delete(*mld);
-	return EX_OSERR;
+	return -EX_OSERR;
 }
 
 void add_poll(struct pollfd *fds, nfds_t *nfds, int fd)
@@ -259,7 +256,8 @@ int main(int argc, char **argv)
 	socklen_t		addrlen;
 	char			*buf;
 
-	if ((ret = parse_args(argc, argv)))
+	ret = parse_args(argc, argv);
+	if (ret)
 		return -ret;
 
 	if (getuid()) {
@@ -273,8 +271,7 @@ int main(int argc, char **argv)
 		if (pid < 0) {
 			perror("fork()");
 			return EX_OSERR;
-		}
-		else if (pid > 0)
+		} else if (pid > 0)
 			return EX_OK;
 
 		if (setsid() < 0) {
@@ -288,33 +285,36 @@ int main(int argc, char **argv)
 		}
 
 		openlog(basename(argv[0]), LOG_PID, LOG_DAEMON);
-	}
-	else
+	} else
 		openlog(basename(argv[0]), LOG_PID | LOG_PERROR, LOG_DAEMON);
 	setlogmask(LOG_UPTO(debug));
 
 	logger(LOG_NOTICE, 0, "started");
 
-	if ((mroute4 = socket(AF_INET, SOCK_RAW, IPPROTO_IGMP)) >= 0) {
-		if ((pim4 = pim_init(mroute4)) < 0) {
+	mroute4 = socket(AF_INET, SOCK_RAW, IPPROTO_IGMP);
+	if (mroute4 < 0)
+		logger(LOG_WARNING, errno, "no IPv4 support");
+	else {
+		pim4 = pim_init(mroute4);
+		if (pim4 < 0) {
 			close(mroute4);
 			mroute4 = -1;
 		}
 		add_poll(fds, &nfds, mroute4);
 		add_poll(fds, &nfds, pim4);
 	}
-	else
-		logger(LOG_WARNING, errno, "no IPv4 support");
-	if ((mroute6 = socket(AF_INET6, SOCK_RAW, IPPROTO_ICMPV6)) >= 0) {
-		if ((pim6 = pim_init(mroute6)) < 0) {
+	mroute6 = socket(AF_INET6, SOCK_RAW, IPPROTO_ICMPV6);
+	if (mroute6 < 0)
+		logger(LOG_WARNING, errno, "no IPv6 support");
+	else {
+		pim6 = pim_init(mroute6);
+		if (pim6 < 0) {
 			close(mroute6);
 			mroute6 = -1;
 		}
 		add_poll(fds, &nfds, mroute6);
 		add_poll(fds, &nfds, pim6);
 	}
-	else
-		logger(LOG_WARNING, errno, "no IPv6 support");
 
 	if (mroute4 < 0 && mroute6 < 0) {
 		logger(LOG_ERR, 0, "multicast routing unavailable");
@@ -327,28 +327,23 @@ int main(int argc, char **argv)
 	if (grgid) {
 		if (setgid(grgid->gr_gid))
 			logger(LOG_WARNING, errno, "unable to drop group privileges");
-	}
-	else
+	} else
 		logger(LOG_WARNING, errno, "unable to find group '%s' to drop privileges to", gid);
 	errno = 0;
 	pwuid = getpwnam(uid);
 	if (pwuid) {
 		if (setuid(pwuid->pw_uid))
 			logger(LOG_WARNING, errno, "unable to drop user privileges");
-	}
-	else
+	} else
 		logger(LOG_WARNING, errno, "unable to find user '%s' to drop privileges to", uid);
 
-	if (hooksignals()) {
-		logger(LOG_ERR, errno, "unable to catch signal()");
-		ret = EX_OSERR;
+	ret = signals(&sig_handler);
+	if (ret)
 		goto mroute;
-	}
 
-	if (prime_timers(&timerid_mld, &timerid_pim)) {
-		ret = EX_OSERR;
+	ret = prime_timers(&timerid_mld, &timerid_pim);
+	if (ret)
 		goto signal;
-	}
 
 	buf = malloc(SOCK_BUFLEN);
 	if (!buf) {
@@ -359,7 +354,6 @@ int main(int argc, char **argv)
 
 	while (running) {
 		ret = poll(fds, nfds, -1);
-
 		if (ret < 0) {
 			if (errno == EINTR)
 				continue;
@@ -400,10 +394,8 @@ int main(int argc, char **argv)
 timer:
 	timer_delete(timerid_mld);
 	timer_delete(timerid_pim);
-
 signal:
-	unhooksignals();
-
+	signals(SIG_IGN);
 mroute:
 	if (mroute4 > 0) {
 		close(pim4);
@@ -413,7 +405,6 @@ mroute:
 		close(pim6);
 		pim_shutdown(mroute6);
 	}
-
 exit:
 	logger(LOG_NOTICE, 0, "exiting");
 
