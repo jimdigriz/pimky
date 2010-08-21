@@ -46,7 +46,7 @@ enum {
 	PIM_CAND_RP_ADVERT,
 };
 
-/* IFF_LOOPBACK in flags means further structs */
+/* (flags & IFF_LOOPBACK) indicate not end of array */
 struct iface_map_addr {
 	unsigned int		flags;
 	struct sockaddr		addr;
@@ -57,7 +57,7 @@ struct iface_map_addr {
 	} ifu;
 };
 
-/* IFF_LOOPBACK in flags means further structs */
+/* (flags & IFF_LOOPBACK) indicate not end of array */
 struct iface_map {
 	char			name[IFNAMSIZ];
 	unsigned int		index;
