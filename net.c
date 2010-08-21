@@ -106,6 +106,9 @@ int iface_map_get(struct iface_map **iface_map)
 			ifma[-1].flags |= IFF_LOOPBACK;
 
 		ifma->flags = ifa->ifa_flags;
+		/* I assume the following always holds true */
+		assert((ifm->flags | IFF_LOOPBACK) == (ifma->flags | IFF_LOOPBACK));
+
 		memcpy(&ifma->addr, ifa->ifa_addr, sizeof(struct sockaddr));
 		if (ifa->ifa_netmask)
 			memcpy(&ifma->netmask, ifa->ifa_netmask, sizeof(struct sockaddr));
