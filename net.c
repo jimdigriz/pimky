@@ -65,9 +65,11 @@ int iface_map_get(struct iface_map **iface_map)
 
 		ifm = NULL;
 		if (*iface_map) {
-			for (ifm = *iface_map; ifm->flags & IFF_LOOPBACK; ifm = &ifm[1]) {
-				if (ifindex == ifm->index)
+			ifm = *iface_map;
+			while (ifindex != ifm->index) {
+				if (!(ifm->flags & IFF_LOOPBACK))
 					break;
+				ifm = &ifm[1];
 			}
 		}
 		if (!ifm || ifindex != ifm->index) {
@@ -92,11 +94,10 @@ int iface_map_get(struct iface_map **iface_map)
 		}
 
 		j = 0;
-		ifma = NULL;
-		if (ifm->addr) {
-			j = 1;
-			for (ifma = ifm->addr; ifma->flags & IFF_LOOPBACK; ifma = &ifma[1])
-				j++;
+		for (ifma = ifm->addr; ifma != NULL; ifma = &ifma[1]) {
+			j++;
+			if (!(ifma->flags & IFF_LOOPBACK))
+				break;
 		}
 		ifm->addr = realloc(ifm->addr, (j+1)*sizeof(struct iface_map_addr));
 		if (!ifm->addr) {
