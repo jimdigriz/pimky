@@ -22,7 +22,7 @@ void iface_map_free(struct iface_map *iface_map)
 	ifm = iface_map;
 	while (1) {
 		free(ifm->addr);
-		if (ifm->flags & IFF_LOOPBACK)
+		if (!(ifm->flags & IFF_LOOPBACK))
 			break;
 
 		ifm = &ifm[1];
