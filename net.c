@@ -16,16 +16,10 @@ void iface_map_free(struct iface_map *iface_map)
 {
 	struct iface_map *ifm;
 
-	if (!iface_map)
-		return;
-
-	ifm = iface_map;
-	while (1) {
+	for (ifm = iface_map; ifm != NULL; ifm = &ifm[1]) {
 		free(ifm->addr);
 		if (!(ifm->flags & IFF_LOOPBACK))
 			break;
-
-		ifm = &ifm[1];
 	}
 
 	free(iface_map);
@@ -63,16 +57,15 @@ int iface_map_get(struct iface_map **iface_map)
 		ifindex = if_nametoindex(ifa->ifa_name);
 		assert(ifindex);
 
-		ifm = NULL;
-		if (*iface_map) {
-			ifm = *iface_map;
-			while (ifindex != ifm->index) {
-				if (!(ifm->flags & IFF_LOOPBACK))
-					break;
-				ifm = &ifm[1];
+		for (ifm = *iface_map; ifm != NULL; ifm = &ifm[1]) {
+			if (ifm->index == ifindex)
+				break;
+			if (!(ifm->flags & IFF_LOOPBACK)) {
+				ifm = NULL;
+				break;
 			}
 		}
-		if (!ifm || ifindex != ifm->index) {
+		if (!ifm) {
 			*iface_map = realloc(*iface_map, (i+1)*sizeof(struct iface_map));
 			if (!*iface_map) {
 				logger(LOG_ERR, errno, "realloc()");
