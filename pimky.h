@@ -46,16 +46,23 @@ enum {
 	PIM_CAND_RP_ADVERT,
 };
 
-struct iface_map {
-	char		name[IFNAMSIZ];
-	unsigned int	index;
-	unsigned int	flags;
-	struct sockaddr	addr;
-	struct sockaddr	netmask;
+/* IFF_LOOPBACK in flags means further structs */
+struct iface_map_addr {
+	unsigned int		flags;
+	struct sockaddr		addr;
+	struct sockaddr		netmask;
 	union {
 		struct sockaddr	broadaddr;
 		struct sockaddr	dstaddr;
 	} ifu;
+};
+
+/* IFF_LOOPBACK in flags means further structs */
+struct iface_map {
+	char			name[IFNAMSIZ];
+	unsigned int		index;
+	unsigned int		flags;
+	struct iface_map_addr	*addr;
 };
 
 /* utils.c */
@@ -64,7 +71,8 @@ int socktype(int sock);
 uint16_t cksum(void *, int);
 
 /* net.c */
-int iface_map_get(struct iface_map *);
+void iface_map_free(struct iface_map *);
+int iface_map_get(struct iface_map **);
 
 /* pim.c */
 int pim_init(int);

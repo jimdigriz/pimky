@@ -12,11 +12,35 @@
 
 #include "pimky.h"
 
-int iface_map_get(struct iface_map *iface_map)
+void iface_map_free(struct iface_map *iface_map)
+{
+	struct iface_map *ifm;
+
+	if (!iface_map)
+		return;
+
+	ifm = iface_map;
+	while (1) {
+		free(ifm->addr);
+		if (ifm->flags & IFF_LOOPBACK)
+			break;
+
+		ifm = &ifm[1];
+	}
+
+	free(iface_map);
+	iface_map = NULL;
+}
+
+int iface_map_get(struct iface_map **iface_map)
 {
 	struct ifaddrs *ifaddr, *ifa;
-	int i = 0;
+	struct iface_map_addr *ifma;
+	struct iface_map *ifm;
+	int ifindex, i, j;
 	int ret = EX_OK;
+
+	iface_map_free(*iface_map);
 
 	if(getifaddrs(&ifaddr)) {
 		logger(LOG_ERR, errno, "getifaddrs()");
@@ -24,8 +48,7 @@ int iface_map_get(struct iface_map *iface_map)
 		goto exit;
 	}
 
-	free(iface_map);
-
+	i = 0;
 	for (ifa = ifaddr; ifa->ifa_next != NULL; ifa = ifa->ifa_next) {
 		if (!(ifa->ifa_flags & (IFF_UP | IFF_MULTICAST)))
 			continue;
@@ -37,31 +60,67 @@ int iface_map_get(struct iface_map *iface_map)
 				&& ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
 
-		iface_map = realloc(iface_map, (i+1)*sizeof(struct iface_map));
-		if (!iface_map) {
+		ifindex = if_nametoindex(ifa->ifa_name);
+		assert(ifindex);
+
+		ifm = NULL;
+		if (*iface_map) {
+			for (ifm = *iface_map; ifm->flags & IFF_LOOPBACK; ifm = &ifm[1]) {
+				if (ifindex == ifm->index)
+					break;
+			}
+		}
+		if (!ifm || ifindex != ifm->index) {
+			*iface_map = realloc(*iface_map, (i+1)*sizeof(struct iface_map));
+			if (!*iface_map) {
+				logger(LOG_ERR, errno, "realloc()");
+				ret = -EX_OSERR;
+				iface_map_free(*iface_map);
+				goto ifaddrs;
+			}
+			ifm = &(*iface_map)[i];
+			memset(ifm, 0, sizeof(struct iface_map));
+
+			if (i > 0)
+				ifm[-1].flags |= IFF_LOOPBACK;
+
+			ifm->index	= ifindex;
+			ifm->flags	= ifa->ifa_flags;
+			strncpy(ifm->name, ifa->ifa_name, IFNAMSIZ);
+
+			i++;
+		}
+
+		j = 0;
+		ifma = NULL;
+		if (ifm->addr) {
+			j = 1;
+			for (ifma = ifm->addr; ifma->flags & IFF_LOOPBACK; ifma = &ifma[1])
+				j++;
+		}
+		ifm->addr = realloc(ifm->addr, (j+1)*sizeof(struct iface_map_addr));
+		if (!ifm->addr) {
 			logger(LOG_ERR, errno, "realloc()");
 			ret = -EX_OSERR;
-			free(iface_map);
+			iface_map_free(*iface_map);
 			goto ifaddrs;
 		}
-		/* memset(iface_map[i], 0, sizeof(struct iface_map)); */
+		ifma = &ifm->addr[j];
+		memset(ifma, 0, sizeof(struct iface_map_addr));
 
-		iface_map[i].index	= if_nametoindex(ifa->ifa_name);
-		assert(iface_map[i].index);
-		iface_map[i].flags	= ifa->ifa_flags;
+		if (j > 0)
+			ifma[-1].flags |= IFF_LOOPBACK;
 
-		strncpy(iface_map[i].name, ifa->ifa_name, IFNAMSIZ);
-		memcpy(&iface_map[i].addr, ifa->ifa_addr, sizeof(struct sockaddr));
-
+		ifma->flags = ifa->ifa_flags;
+		memcpy(&ifma->addr, ifa->ifa_addr, sizeof(struct sockaddr));
 		if (ifa->ifa_netmask)
-			memcpy(&iface_map[i].netmask, ifa->ifa_netmask, sizeof(struct sockaddr));
-
+			memcpy(&ifma->netmask, ifa->ifa_netmask, sizeof(struct sockaddr));
 		if (ifa->ifa_flags & IFF_POINTOPOINT)
-			memcpy(&iface_map[i].ifu.dstaddr, ifa->ifa_ifu.ifu_dstaddr, sizeof(struct sockaddr));
+			memcpy(&ifma->ifu.dstaddr,
+					ifa->ifa_ifu.ifu_dstaddr, sizeof(struct sockaddr));
 		else if (ifa->ifa_flags & IFF_BROADCAST && ifa->ifa_ifu.ifu_broadaddr)
-			memcpy(&iface_map[i].ifu.broadaddr, ifa->ifa_ifu.ifu_broadaddr, sizeof(struct sockaddr));
-
-		i++;
+			memcpy(&ifma->ifu.broadaddr,
+					ifa->ifa_ifu.ifu_broadaddr, sizeof(struct sockaddr));
 	}
 
 ifaddrs:
@@ -69,5 +128,3 @@ ifaddrs:
 exit:
 	return ret;
 }
-
-

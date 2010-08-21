@@ -255,7 +255,7 @@ int main(int argc, char **argv)
 	struct sockaddr		src_addr;
 	socklen_t		addrlen;
 	char			*buf;
-	struct iface_map	*iface_map;
+	struct iface_map	*iface_map = NULL;
 
 	ret = parse_args(argc, argv);
 	if (ret)
@@ -292,7 +292,7 @@ int main(int argc, char **argv)
 
 	logger(LOG_NOTICE, 0, "started");
 
-	ret = iface_map_get(iface_map);
+	ret = iface_map_get(&iface_map);
 	if (ret < 0)
 		goto exit;
 
