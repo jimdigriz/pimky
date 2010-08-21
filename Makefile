@@ -4,7 +4,7 @@ LDFLAGS=-lrt
 
 STRIP=strip
 
-OBJS = utils.o pim.o mld.o pimky.o
+OBJS = utils.o net.o pim.o mld.o pimky.o
 
 pimky: $(OBJS)
 	$(CROSS_COMPILE)$(CC) $(LDFLAGS) $^ -o pimky

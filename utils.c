@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdint.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <syslog.h>
@@ -61,4 +62,19 @@ int socktype(int sock)
 	}
 
 	return addr.sa_family;
+}
+
+/* when checking, pass header and check for return of 0xffff (~0)*/
+uint16_t cksum(void *buf, int len)
+{
+	uint16_t	*b	= buf;
+	unsigned int	sum	= 0;
+
+	for (; b < (uint16_t *) ((char *)buf + len); b++)
+		sum += *b;
+
+	sum = (sum & 0xffff) >> 16;
+	sum = ~sum;
+
+	return sum;
 }

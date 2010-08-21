@@ -26,12 +26,14 @@
 /* http://tools.ietf.org/html/rfc3810 - mld */
 /* http://tools.ietf.org/html/rfc4604 - igmpv3/mld-ssm */
 
+#include <syslog.h>
+#include <sysexits.h>
 #include <errno.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
 #include <unistd.h>
-#include <sysexits.h>
 #include <assert.h>
 #include <getopt.h>
 #include <ctype.h>
@@ -39,7 +41,6 @@
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include <syslog.h>
 #include <signal.h>
 #include <time.h>
 #include <string.h>
@@ -57,6 +58,7 @@ char		*gid	= GID;
 
 unsigned int	running	= 1;
 
+int		mroute4, mroute6;
 int		pim4, pim6;
 
 /* http://www.gnu.org/s/libc/manual/html_node/Getopt.html */
@@ -93,7 +95,7 @@ int parse_args(int argc, char **argv)
 		return -EX_USAGE;
 	case 'V':
 		printf("%s %s\n\n", basename(argv[0]), VERSION);
-		printf(	"Copyright (C) 2010 Alexander Clouter <alex@digriz.org.uk>\n"
+		printf("Copyright (C) 2010 Alexander Clouter <alex@digriz.org.uk>\n"
 			"License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.\n"
 			"This is free software: you are free to change and redistribute it.\n"
 			"There is NO WARRANTY, to the extent permitted by law.\n");
@@ -101,7 +103,7 @@ int parse_args(int argc, char **argv)
 	case 'h':
 	default:
 		printf("Usage: %s [-h] [-V] [options] [(-q|-v)]\n", basename(argv[0]));
-		printf(	"Slimline PIM Routing Daemon for IPv4 and IPv6\n"
+		printf("Slimline PIM Routing Daemon for IPv4 and IPv6\n"
 			"\n"
 			"  -n		do not fork (additionally logs to stderr)\n"
 			"  -u name	drop privileges to user (default: '%s')\n"
@@ -127,7 +129,7 @@ int parse_args(int argc, char **argv)
 	else if (debug > LOG_DEBUG)
 		debug = LOG_DEBUG;
 
-	return 0;
+	return EX_OK;
 }
 
 int signals(void (*handler)(int))
@@ -155,7 +157,7 @@ int signals(void (*handler)(int))
 	if (ret)
 		goto err;
 
-	return 0;
+	return EX_OK;
 
 err:
 	logger(LOG_ERR, errno, "unable to sigaction() all signals");
@@ -207,7 +209,6 @@ int prime_timers(timer_t *mld, timer_t *pim)
 
 	/* rand() might return not enough bits to make use of */
 	srand(time(NULL));
-	/* TODO test this works */
 	do {
 		rand_tot <<= (__builtin_clz(0) - __builtin_clz((unsigned int) RAND_MAX));
 		rand_tot +=  rand();
@@ -225,7 +226,7 @@ int prime_timers(timer_t *mld, timer_t *pim)
 		goto pim;
 	}
 
-	return 0;
+	return EX_OK;
 
 pim:
 	timer_delete(*pim);
@@ -245,7 +246,6 @@ void add_poll(struct pollfd *fds, nfds_t *nfds, int fd)
 int main(int argc, char **argv)
 {
 	int			ret = EX_OK;
-	int			mroute4, mroute6;
 	int			i;
 	struct group		*grgid;
 	struct passwd		*pwuid;
@@ -255,6 +255,7 @@ int main(int argc, char **argv)
 	struct sockaddr		src_addr;
 	socklen_t		addrlen;
 	char			*buf;
+	struct iface_map	*iface_map;
 
 	ret = parse_args(argc, argv);
 	if (ret)
@@ -290,6 +291,10 @@ int main(int argc, char **argv)
 	setlogmask(LOG_UPTO(debug));
 
 	logger(LOG_NOTICE, 0, "started");
+
+	ret = iface_map_get(iface_map);
+	if (ret < 0)
+		goto exit;
 
 	mroute4 = socket(AF_INET, SOCK_RAW, IPPROTO_IGMP);
 	if (mroute4 < 0)

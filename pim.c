@@ -1,5 +1,8 @@
 #include <stdio.h>
 #include <time.h>
+#include <assert.h>
+#include <arpa/inet.h>
+#include <linux/ip.h>
 #include <syslog.h>
 #include <sysexits.h>
 #include <errno.h>
@@ -127,8 +130,46 @@ void pim_hello_send(void)
 	fprintf(stderr, "%d, sent pim hello\n", (int) time(NULL));
 }
 
-void pim_recv(int sock, char *buf, int len,
+void pim_recv(int sock, void *buf, int len,
 		struct sockaddr *src_addr, socklen_t addrlen)
 {
+	struct iphdr	*ip;
+	struct pimhdr	*pim;
+
 	printf("called %s\n", __func__);
+
+	switch (src_addr->sa_family) {
+	case AF_INET:
+		ip	= buf;
+
+		assert(ip->version == 4);
+		assert(ip->ihl >= 5);
+		assert(ntohs(ip->tot_len) == len);
+		/* TODO do we handle fragments? */
+		assert(ntohs(ip->frag_off) == 0 || ntohs(ip->frag_off) & 0x4000);
+//		assert(ip->ttl == 1);
+		assert(ip->protocol == IPPROTO_PIM);
+		assert(cksum(ip, ip->ihl << 2) == 0xffff);
+		assert(IN_MULTICAST(ntohl(ip->daddr)));
+
+		pim	= (struct pimhdr *) ((char *)buf + (ip->ihl << 2));
+
+		assert(pim->ver == 2);
+		assert(pim->reserved == 0);	/* TODO ignore */
+		assert(cksum(pim, sizeof(struct pimhdr)) == 0xffff);
+
+		switch (pim->type) {
+		case PIM_HELLO:
+
+			break;
+		default:
+			printf("got unknown code %d\n", pim->type);
+		}
+
+		break;
+	case AF_INET6:
+		break;
+	default:
+		logger(LOG_WARNING, 0, "%s(): unknown socket type: %d", __func__, src_addr->sa_family);
+	}
 }
