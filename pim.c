@@ -1,20 +1,36 @@
-#include <stdio.h>
-#include <time.h>
-#include <assert.h>
-#include <arpa/inet.h>
-#include <linux/ip.h>
-#include <syslog.h>
-#include <sysexits.h>
-#include <errno.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <netinet/icmp6.h>
-#include <net/ethernet.h>
-#include <linux/mroute.h>
-#include <linux/mroute6.h>
+/*
+ * This file is part of:
+ * 	pimky - Slimline PIM Routing Daemon for IPv4 and IPv6
+ * Copyright (C) 2010  Alexander Clouter <alex@digriz.org.uk>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the
+ * Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+ * Boston, MA 02110-1301, USA
+ * or alternatively visit <http://www.gnu.org/licenses/gpl.html>
+ */
 
 #include "pimky.h"
+
+#include <stdio.h>
+#include <netinet/ip.h>
+#include <netinet/icmp6.h>
+#ifdef __linux
+#include <linux/mroute.h>
+#include <linux/mroute6.h>
+#else
+#error "add your OS here"
+#endif
 
 int pim_init(int sock)
 {
@@ -75,6 +91,8 @@ int pim_init(int sock)
 		return -EX_OSERR;
 	}
 
+	ret = pim_register(sock, type);
+
 	return pim;
 }
 
@@ -127,7 +145,7 @@ int pim_shutdown(int sock)
 
 void pim_hello_send(void)
 {
-	fprintf(stderr, "%d, sent pim hello\n", (int) time(NULL));
+	fprintf(stderr, "sent pim hello\n");
 }
 
 void pim_recv(int sock, void *buf, int len,
@@ -147,7 +165,7 @@ void pim_recv(int sock, void *buf, int len,
 		assert(ntohs(ip->tot_len) == len);
 		/* TODO do we handle fragments? */
 		assert(ntohs(ip->frag_off) == 0 || ntohs(ip->frag_off) & 0x4000);
-//		assert(ip->ttl == 1);
+		/* assert(ip->ttl == 1); */
 		assert(ip->protocol == IPPROTO_PIM);
 		assert(cksum(ip, ip->ihl << 2) == 0xffff);
 		assert(IN_MULTICAST(ntohl(ip->daddr)));
@@ -160,7 +178,7 @@ void pim_recv(int sock, void *buf, int len,
 
 		switch (pim->type) {
 		case PIM_HELLO:
-
+			printf("got a PIM Hello\n");
 			break;
 		default:
 			printf("got unknown code %d\n", pim->type);
@@ -172,4 +190,34 @@ void pim_recv(int sock, void *buf, int len,
 	default:
 		logger(LOG_WARNING, 0, "%s(): unknown socket type: %d", __func__, src_addr->sa_family);
 	}
+}
+
+int pim_register(int sock, int type)
+{
+	struct pimky_ifctl	ifctl;
+	struct sockaddr_storage	addr;
+	int 			ret = EX_OK;
+
+	memset(&ifctl, 0, sizeof(struct pimky_ifctl));
+	memset(&addr, 0, sizeof(struct sockaddr_storage));
+
+	switch (type) {
+	case AF_INET:
+		ifctl.flags	= VIFF_REGISTER;
+		break;
+	case AF_INET6:
+		ifctl.flags	= MIFF_REGISTER;
+		break;
+	default:
+		logger(LOG_ERR, 0, "%s(): unknown socket type: %d", __func__, type);
+		return -EX_SOFTWARE;
+	}
+
+	ret = vif_add(sock, type, &ifctl);
+	if (!ret) {
+		addr.ss_family = type;
+		ret = mcast_add(sock, &addr);
+	}
+
+	return ret;
 }

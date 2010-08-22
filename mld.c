@@ -1,26 +1,41 @@
-#include <stdio.h>
-#include <time.h>
-#include <assert.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <linux/ip.h>
-#include <linux/igmp.h>
-#include <syslog.h>
-#include <sys/types.h>
-#include <sys/socket.h>
+/*
+ * This file is part of:
+ * 	pimky - Slimline PIM Routing Daemon for IPv4 and IPv6
+ * Copyright (C) 2010  Alexander Clouter <alex@digriz.org.uk>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the
+ * Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+ * Boston, MA 02110-1301, USA
+ * or alternatively visit <http://www.gnu.org/licenses/gpl.html>
+ */
 
 #include "pimky.h"
 
+#include <stdio.h>
+#include <netinet/ip.h>
+#include <netinet/igmp.h>
+
 void mld_query_send(void)
 {
-	fprintf(stderr, "%d, sent igmp/mld query\n", (int) time(NULL));
+	fprintf(stderr, "sent igmp/mld query\n");
 }
 
 void mld_recv(int sock, void *buf, int len,
 		struct sockaddr *src_addr, socklen_t addrlen)
 {
 	struct iphdr	*ip;
-	struct igmphdr	*igmp;
+	struct igmp	*igmp;
 
 	printf("called %s\n", __func__);
 
@@ -38,19 +53,13 @@ void mld_recv(int sock, void *buf, int len,
 		assert(cksum(ip, ip->ihl << 2) == 0xffff);
 		assert(IN_MULTICAST(ntohl(ip->daddr)));
 
-		igmp	= (struct igmphdr *) ((char *)buf + (ip->ihl << 2));
+		igmp	= (struct igmp *) ((char *)buf + (ip->ihl << 2));
 
-		assert(cksum(igmp, sizeof(struct igmphdr)) == 0xffff);
+		assert(cksum(igmp, sizeof(struct igmp)) == 0xffff);
 
-		switch (igmp->type) {
-		case IGMP_HOST_MEMBERSHIP_QUERY:
-		case IGMP_HOST_MEMBERSHIP_REPORT:
-		case IGMPV2_HOST_MEMBERSHIP_REPORT:
-		case IGMP_HOST_LEAVE_MESSAGE:
-		case IGMPV3_HOST_MEMBERSHIP_REPORT:
-			break;
+		switch (igmp->igmp_type) {
 		default:
-			printf("got unknown code %d\n", igmp->type);
+			printf("got unknown code %d\n", igmp->igmp_type);
 		}
 
 		break;

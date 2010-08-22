@@ -1,6 +1,33 @@
+/*
+ * This file is part of:
+ * 	pimky - Slimline PIM Routing Daemon for IPv4 and IPv6
+ * Copyright (C) 2010  Alexander Clouter <alex@digriz.org.uk>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the
+ * Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+ * Boston, MA 02110-1301, USA
+ * or alternatively visit <http://www.gnu.org/licenses/gpl.html>
+ */
+
+#include <syslog.h>
+#include <sysexits.h>
+#include <errno.h>
+#include <assert.h>
+
 #include <stdint.h>
+#include <net/if.h>
 #include <netinet/in.h>
-#include <linux/if.h>
 
 #define	VERSION		"2010081100"
 
@@ -42,7 +69,14 @@ enum {
 	PIM_ASSERT,
 	PIM_GRAFT,
 	PIM_GRAFT_ACK,
-	PIM_CAND_RP_ADVERT,
+	PIM_CAND_RP_ADVERT
+};
+
+/* mroute.h/mroute6.h combined */
+struct pimky_ifctl {
+	unsigned short	ifi;
+	unsigned char	flags;
+	unsigned char	threshold;
 };
 
 struct iface_map_addr {
@@ -74,12 +108,15 @@ uint16_t cksum(void *, int);
 /* net.c */
 void iface_map_init(void);
 int iface_map_get(void);
+int mcast_add(int, struct sockaddr_storage *);
+int vif_add(int, int, struct pimky_ifctl *);
 
 /* pim.c */
 int pim_init(int);
 int pim_shutdown(int);
 void pim_hello_send(void);
 void pim_recv(int, void *, int, struct sockaddr *, socklen_t);
+int pim_register(int, int);
 
 /* mld.c */
 void mld_query_send(void);

@@ -26,30 +26,19 @@
 /* http://tools.ietf.org/html/rfc3810 - mld */
 /* http://tools.ietf.org/html/rfc4604 - igmpv3/mld-ssm */
 
-#include <syslog.h>
-#include <sysexits.h>
-#include <errno.h>
+#include "pimky.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdarg.h>
 #include <unistd.h>
-#include <assert.h>
-#include <getopt.h>
+#include <stdio.h>
 #include <ctype.h>
 #include <libgen.h>
-#include <sys/ioctl.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
 #include <signal.h>
+#include <stdlib.h>
 #include <time.h>
-#include <string.h>
-#include <strings.h>
-#include <pwd.h>
-#include <grp.h>
 #include <poll.h>
-
-#include "pimky.h"
+#include <sys/types.h>
+#include <grp.h>
+#include <pwd.h>
 
 int			debug	= LOG_NOTICE;
 unsigned int		nofork;	/* zero */
@@ -136,10 +125,11 @@ int parse_args(int argc, char **argv)
 int signals(void (*handler)(int))
 {
 	int ret;
-	struct sigaction action = {
-		.sa_handler	= handler,
-		.sa_flags	= 0
-	};
+	struct sigaction action;
+       
+	action.sa_handler	= handler;
+	action.sa_flags		= 0;
+
 	sigemptyset(&action.sa_mask);
 
 	ret = sigaction(SIGTERM, &action, NULL);
@@ -191,9 +181,9 @@ int prime_timers(timer_t *mld, timer_t *pim)
 {
 	unsigned int		rand_tot = 0, rand_max = RAND_MAX;
 	struct itimerspec	timer;
-	struct sigevent		event = {
-		.sigev_notify	= SIGEV_SIGNAL
-	};
+	struct sigevent		event;
+
+	event.sigev_notify	= SIGEV_SIGNAL;
 
 	event.sigev_signo	= SIGUSR1;
 	if (timer_create(CLOCK_MONOTONIC, &event, mld)) {
@@ -208,7 +198,7 @@ int prime_timers(timer_t *mld, timer_t *pim)
 		logger(LOG_ERR, errno, "timer_settime(mld)");
 		goto mld;
 	}
-
+return 0;
 	event.sigev_signo	= SIGUSR2;
 	if (timer_create(CLOCK_MONOTONIC, &event, pim)) {
 		logger(LOG_ERR, errno, "timer_create(pim)");

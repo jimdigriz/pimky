@@ -1,20 +1,38 @@
-#include <syslog.h>
-#include <sysexits.h>
-#include <errno.h>
-
-#include <stdlib.h>
-#include <assert.h>
-#include <sys/types.h>
-/* uClibc: UCLIBC_USE_NETLINK && UCLIBC_SUPPORT_AI_ADDRCONFIG */
-#include <ifaddrs.h>
-#include <net/if.h>
-#include <linux/if.h>
-#include <string.h>
-#include <netinet/in.h>
-#include <linux/mroute.h>
-#include <linux/mroute6.h>
+/*
+ * This file is part of:
+ * 	pimky - Slimline PIM Routing Daemon for IPv4 and IPv6
+ * Copyright (C) 2010  Alexander Clouter <alex@digriz.org.uk>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the
+ * Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+ * Boston, MA 02110-1301, USA
+ * or alternatively visit <http://www.gnu.org/licenses/gpl.html>
+ */
 
 #include "pimky.h"
+
+#include <stdlib.h>
+#include <string.h>
+/* uClibc: UCLIBC_USE_NETLINK && UCLIBC_SUPPORT_AI_ADDRCONFIG */
+#include <ifaddrs.h>
+
+#ifdef __linux
+#include <linux/mroute.h>
+#include <linux/mroute6.h>
+#else
+#error "add your OS here"
+#endif
 
 void iface_map_init(void)
 {
@@ -150,11 +168,80 @@ int iface_map_get(void)
 				break;
 			}
 	}
-	assert(cifv4 < MAXVIFS);
-	assert(cifv6 < MAXMIFS);
+	/* one short as we need space for vif0 */
+	assert(cifv4 < MAXVIFS - 1);
+	assert(cifv6 < MAXMIFS - 1);
 
 ifaddrs:
 	freeifaddrs(ifaddr);
 exit:
 	return ret;
+}
+
+int mcast_add(int sock, struct sockaddr_storage *addr)
+{
+	union {
+		struct ip_mreq		v4;
+		struct ipv6_mreq	v6;
+	} mreq;
+
+	memset(&mreq, 0, sizeof(mreq));
+
+	switch (addr->ss_family) {
+	case AF_INET:
+		if (setsockopt(sock, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq)) < 0) {
+			logger(LOG_ERR, errno, "%s(): setsockopt(IP_ADD_MEMBERSHIP)", __func__);
+			return -EX_OSERR;
+		}
+		break;
+	case AF_INET6:
+		if (setsockopt(sock, IPPROTO_IPV6, IPV6_ADD_MEMBERSHIP, &mreq, sizeof(mreq)) < 0) {
+			logger(LOG_ERR, errno, "%s(): setsockopt(IPV6_ADD_MEMBERSHIP)", __func__);
+			return -EX_OSERR;
+		}
+		break;
+	default:
+		logger(LOG_ERR, 0, "%s(): unknown socket type: %d", __func__, addr->ss_family);
+		return -EX_SOFTWARE;
+	}
+
+	return EX_OK;
+}
+
+int vif_add(int sock, int type, struct pimky_ifctl *ifctl)
+{
+	union {
+		struct vifctl	v4;
+		struct mif6ctl	v6;
+	} mif;
+
+	memset(&mif, 0, sizeof(mif));
+
+	switch (type) {
+	case AF_INET:
+		mif.v4.vifc_vifi	= ifctl->ifi;
+		mif.v4.vifc_flags	= ifctl->flags;
+		mif.v4.vifc_threshold	= ifctl->threshold;
+
+		if (setsockopt(sock, IPPROTO_IP, MRT_ADD_VIF, &mif, sizeof(mif)) < 0) {
+			logger(LOG_ERR, errno, "%s(): setsockopt(MRT_ADD_VIF)", __func__);
+			return -EX_OSERR;
+		}
+		break;
+	case AF_INET6:
+		mif.v6.mif6c_mifi	= ifctl->ifi;
+		mif.v6.mif6c_flags	= ifctl->flags;
+		mif.v6.vifc_threshold	= ifctl->threshold;
+
+		if (setsockopt(sock, IPPROTO_IPV6, MRT_ADD_VIF, &mif, sizeof(mif)) < 0) {
+			logger(LOG_ERR, errno, "%s(): setsockopt(MRT6_ADD_VIF)", __func__);
+			return -EX_OSERR;
+		}
+		break;
+	default:
+		logger(LOG_ERR, 0, "%s(): unknown socket type: %d", __func__, type);
+		return -EX_SOFTWARE;
+	}
+
+	return EX_OK;
 }
