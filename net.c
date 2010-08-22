@@ -14,16 +14,23 @@
 
 void iface_map_free(struct iface_map *iface_map)
 {
-	struct iface_map *ifm;
+	struct iface_map *ifm, *nifm;
+	struct iface_map_addr *ifma, *nifma;
 
-	for (ifm = iface_map; ifm != NULL; ifm = &ifm[1]) {
-		free(ifm->addr);
-		if (!(ifm->flags & IFACE_MAP_CONT))
-			break;
+	ifm = iface_map;
+	while (ifm != NULL) {
+		nifm = ifm->next;
+
+		ifma = iface_map->addr;
+		while (ifma != NULL) {
+			nifma = ifma->next;
+			free(ifma);
+			ifma = nifma;
+		}
+
+		free(ifm);
+		ifm = nifm;
 	}
-
-	free(iface_map);
-	iface_map = NULL;
 }
 
 int iface_map_get(struct iface_map **iface_map)
@@ -31,10 +38,19 @@ int iface_map_get(struct iface_map **iface_map)
 	struct ifaddrs *ifaddr, *ifa;
 	struct iface_map_addr *ifma;
 	struct iface_map *ifm;
-	int ifindex, i, j;
+	int ifindex;
 	int ret = EX_OK;
 
 	iface_map_free(*iface_map);
+
+	/* dummy entry */
+	*iface_map = malloc(sizeof(struct iface_map));
+	if (*iface_map == NULL) {
+		logger(LOG_ERR, errno, "malloc(iface_map - dummy)");
+		ret = -EX_OSERR;
+		goto exit;
+	}
+	memset(*iface_map, 0, sizeof(struct iface_map));
 
 	if(getifaddrs(&ifaddr)) {
 		logger(LOG_ERR, errno, "getifaddrs()");
@@ -42,8 +58,7 @@ int iface_map_get(struct iface_map **iface_map)
 		goto exit;
 	}
 
-	i = 0;
-	for (ifa = ifaddr; ifa->ifa_next != NULL; ifa = ifa->ifa_next) {
+	for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
 		if (!(ifa->ifa_flags & (IFF_UP | IFF_MULTICAST)))
 			continue;
 
@@ -57,57 +72,52 @@ int iface_map_get(struct iface_map **iface_map)
 		ifindex = if_nametoindex(ifa->ifa_name);
 		assert(ifindex);
 
-		for (ifm = *iface_map; ifm != NULL; ifm = &ifm[1]) {
+		for (ifm = *iface_map; ifm != NULL; ifm = ifm->next)
 			if (ifm->index == ifindex)
 				break;
-			if (!(ifm->flags & IFACE_MAP_CONT)) {
-				ifm = NULL;
-				break;
-			}
-		}
-		if (!ifm) {
-			*iface_map = realloc(*iface_map, (i+1)*sizeof(struct iface_map));
-			if (!*iface_map) {
-				logger(LOG_ERR, errno, "realloc()");
+		if (ifm == NULL) {
+			ifm = malloc(sizeof(struct iface_map));
+			if (ifm == NULL) {
+				logger(LOG_ERR, errno, "malloc(iface_map)");
 				ret = -EX_OSERR;
 				iface_map_free(*iface_map);
 				goto ifaddrs;
 			}
-			ifm = &(*iface_map)[i];
 			memset(ifm, 0, sizeof(struct iface_map));
 
-			if (i > 0)
-				ifm[-1].flags |= IFACE_MAP_CONT;
+			ifm->next		= (*iface_map)->next;
+			(*iface_map)->next	= ifm;
 
-			ifm->index	= ifindex;
-			ifm->flags	= ifa->ifa_flags;
+			ifm->index		= ifindex;
+			ifm->flags		= ifa->ifa_flags;
 			strncpy(ifm->name, ifa->ifa_name, IFNAMSIZ);
 
-			i++;
+			/* dummy entry */
+			ifm->addr = malloc(sizeof(struct iface_map_addr));
+			if (ifm->addr == NULL) {
+				logger(LOG_ERR, errno, "malloc(iface_map_addr - dummy)");
+				ret = -EX_OSERR;
+				iface_map_free(*iface_map);
+				goto ifaddrs;
+			}
+			memset(ifm->addr, 0, sizeof(struct iface_map_addr));
 		}
 
-		j = 0;
-		for (ifma = ifm->addr; ifma != NULL; ifma = &ifma[1]) {
-			j++;
-			if (!(ifma->flags & IFACE_MAP_CONT))
-				break;
-		}
-		ifm->addr = realloc(ifm->addr, (j+1)*sizeof(struct iface_map_addr));
-		if (!ifm->addr) {
-			logger(LOG_ERR, errno, "realloc()");
+		ifma = malloc(sizeof(struct iface_map_addr));
+		if (ifma == NULL) {
+			logger(LOG_ERR, errno, "alloc(iface_map_addr)");
 			ret = -EX_OSERR;
 			iface_map_free(*iface_map);
 			goto ifaddrs;
 		}
-		ifma = &ifm->addr[j];
 		memset(ifma, 0, sizeof(struct iface_map_addr));
 
-		if (j > 0)
-			ifma[-1].flags |= IFACE_MAP_CONT;
+		ifma->next	= ifm->addr->next;
+		ifm->addr->next	= ifma;
 
-		ifma->flags = ifa->ifa_flags;
+		ifma->flags 	= ifa->ifa_flags;
 		/* I assume the following always holds true */
-		assert((ifm->flags | IFACE_MAP_CONT) == (ifma->flags | IFACE_MAP_CONT));
+		assert(ifm->flags == ifma->flags);
 
 		memcpy(&ifma->addr, ifa->ifa_addr, sizeof(struct sockaddr));
 		if (ifa->ifa_netmask)

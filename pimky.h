@@ -46,18 +46,9 @@ enum {
 	PIM_CAND_RP_ADVERT,
 };
 
-/*
- * these two following structure would normally have a *next entry however
- * as we use realloc() to build them we would have to reglue the struct after
- * each call to realloc().  Instead we use a flag to indicate if there are
- * further entries in the array, fortunately we can cheat and use IFF_LOOPBACK
- * as it is not needed for multicast.
- *
- * N.B. chosen to avoid lots of small malloc()'s and free()'ing much simpler
- */
-#define	IFACE_MAP_CONT	IFF_LOOPBACK
-
 struct iface_map_addr {
+	struct iface_map_addr	*next;
+
 	unsigned int		flags;
 	struct sockaddr		addr;
 	struct sockaddr		netmask;
@@ -68,6 +59,8 @@ struct iface_map_addr {
 };
 
 struct iface_map {
+	struct iface_map	*next;
+
 	char			name[IFNAMSIZ];
 	unsigned int		index;
 	unsigned int		flags;

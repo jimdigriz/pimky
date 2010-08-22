@@ -24,7 +24,7 @@ void logger(int severity, int syserr, const char *format, ...)
 
 	while (1) {
 		buf = realloc(buf, bufsize);
-		if (!buf) {
+		if (buf == NULL) {
 			syslog(LOG_CRIT, "realloc() for syslog");
 			goto free;
 		}

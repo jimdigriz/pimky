@@ -351,7 +351,7 @@ int main(int argc, char **argv)
 		goto signal;
 
 	buf = malloc(SOCK_BUFLEN);
-	if (!buf) {
+	if (buf == NULL) {
 		logger(LOG_ERR, 0, "malloc()");
 		ret = EX_OSERR;
 		goto timer;
