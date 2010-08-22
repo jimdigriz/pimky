@@ -51,15 +51,16 @@
 
 #include "pimky.h"
 
-int		debug	= LOG_NOTICE;
-unsigned int	nofork;	/* zero */
-char		*uid	= UID;
-char		*gid	= GID;
+int			debug	= LOG_NOTICE;
+unsigned int		nofork;	/* zero */
+char			*uid	= UID;
+char			*gid	= GID;
 
-unsigned int	running	= 1;
+unsigned int		running	= 1;
 
-int		mroute4, mroute6;
-int		pim4, pim6;
+int			mroute4, mroute6;
+int			pim4, pim6;
+struct iface_map	iface_map = {0};
 
 /* http://www.gnu.org/s/libc/manual/html_node/Getopt.html */
 int parse_args(int argc, char **argv)
@@ -166,15 +167,22 @@ err:
 
 void sig_handler(int sig)
 {
+	int ret;
+
 	if (sig == SIGUSR1) {
 		mld_query_send();
 		return;
 	}
 	if (sig == SIGUSR2) {
+		ret = iface_map_get();
+		if (ret < 0)
+			goto exit;
+
 		pim_hello_send();
 		return;
 	}
 
+exit:
 	running = 0;
 	signals(SIG_IGN);
 }
@@ -255,7 +263,6 @@ int main(int argc, char **argv)
 	struct sockaddr		src_addr;
 	socklen_t		addrlen;
 	char			*buf;
-	struct iface_map	*iface_map = NULL;
 
 	ret = parse_args(argc, argv);
 	if (ret)
@@ -322,10 +329,6 @@ int main(int argc, char **argv)
 		ret = EX_OSERR;
 		goto exit;
 	}
-
-	ret = iface_map_get(&iface_map);
-	if (ret < 0)
-		goto exit;
 
 	errno = 0;
 	grgid = getgrnam(gid);

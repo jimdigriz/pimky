@@ -16,16 +16,16 @@
 
 #include "pimky.h"
 
-void iface_map_free(struct iface_map *iface_map)
+void iface_map_init(void)
 {
 	struct iface_map *ifm, *nifm;
 	struct iface_map_addr *ifma, *nifma;
 
-	ifm = iface_map;
+	ifm = iface_map.next;
 	while (ifm != NULL) {
 		nifm = ifm->next;
 
-		ifma = iface_map->addr;
+		ifma = ifm->addr;
 		while (ifma != NULL) {
 			nifma = ifma->next;
 			free(ifma);
@@ -35,9 +35,11 @@ void iface_map_free(struct iface_map *iface_map)
 		free(ifm);
 		ifm = nifm;
 	}
+
+	memset(&iface_map, 0, sizeof(struct iface_map));
 }
 
-int iface_map_get(struct iface_map **iface_map)
+int iface_map_get(void)
 {
 	struct ifaddrs *ifaddr, *ifa;
 	struct iface_map_addr *ifma;
@@ -46,16 +48,7 @@ int iface_map_get(struct iface_map **iface_map)
 	int cifv4 = 0, cifv6 = 0;
 	int ret = EX_OK;
 
-	iface_map_free(*iface_map);
-
-	/* dummy entry */
-	*iface_map = malloc(sizeof(struct iface_map));
-	if (*iface_map == NULL) {
-		logger(LOG_ERR, errno, "malloc(iface_map - dummy)");
-		ret = -EX_OSERR;
-		goto exit;
-	}
-	memset(*iface_map, 0, sizeof(struct iface_map));
+	iface_map_init();
 
 	if(getifaddrs(&ifaddr)) {
 		logger(LOG_ERR, errno, "getifaddrs()");
@@ -86,7 +79,7 @@ int iface_map_get(struct iface_map **iface_map)
 		ifindex = if_nametoindex(ifa->ifa_name);
 		assert(ifindex);
 
-		for (ifm = (*iface_map)->next; ifm != NULL; ifm = ifm->next)
+		for (ifm = iface_map.next; ifm != NULL; ifm = ifm->next)
 			if (ifm->index == ifindex)
 				break;
 		if (ifm == NULL) {
@@ -94,16 +87,16 @@ int iface_map_get(struct iface_map **iface_map)
 			if (ifm == NULL) {
 				logger(LOG_ERR, errno, "malloc(iface_map)");
 				ret = -EX_OSERR;
-				iface_map_free(*iface_map);
+				iface_map_init();
 				goto ifaddrs;
 			}
 			memset(ifm, 0, sizeof(struct iface_map));
 
-			ifm->next		= (*iface_map)->next;
-			(*iface_map)->next	= ifm;
+			ifm->next	= iface_map.next;
+			iface_map.next	= ifm;
 
-			ifm->index		= ifindex;
-			ifm->flags		= ifa->ifa_flags;
+			ifm->index	= ifindex;
+			ifm->flags	= ifa->ifa_flags;
 			strncpy(ifm->name, ifa->ifa_name, IFNAMSIZ);
 
 			/* dummy entry */
@@ -111,7 +104,7 @@ int iface_map_get(struct iface_map **iface_map)
 			if (ifm->addr == NULL) {
 				logger(LOG_ERR, errno, "malloc(iface_map_addr - dummy)");
 				ret = -EX_OSERR;
-				iface_map_free(*iface_map);
+				iface_map_init();
 				goto ifaddrs;
 			}
 			memset(ifm->addr, 0, sizeof(struct iface_map_addr));
@@ -121,7 +114,7 @@ int iface_map_get(struct iface_map **iface_map)
 		if (ifma == NULL) {
 			logger(LOG_ERR, errno, "alloc(iface_map_addr)");
 			ret = -EX_OSERR;
-			iface_map_free(*iface_map);
+			iface_map_init();
 			goto ifaddrs;
 		}
 		memset(ifma, 0, sizeof(struct iface_map_addr));
@@ -145,7 +138,7 @@ int iface_map_get(struct iface_map **iface_map)
 	}
 
 	/* check we are not exceeding MAXVIFS or MAXMIFS */
-	for (ifm = (*iface_map)->next; ifm != NULL; ifm = ifm->next) {
+	for (ifm = iface_map.next; ifm != NULL; ifm = ifm->next) {
 		for (ifma = ifm->addr->next; ifma != NULL; ifma = ifma->next)
 			if (ifma->addr.sa_family == AF_INET) {
 				cifv4++;

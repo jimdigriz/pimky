@@ -9,10 +9,10 @@
 
 #define SOCK_BUFLEN	2048
 
-/* defaults */
 extern int		debug;
 extern int		mroute4, mroute6;
 extern int		pim4, pim6;
+extern struct iface_map	iface_map;
 
 #define RFC3376_RFC3810_Query_Interval	125
 #define RFC4601_Hello_Period		 30
@@ -72,8 +72,8 @@ int socktype(int sock);
 uint16_t cksum(void *, int);
 
 /* net.c */
-void iface_map_free(struct iface_map *);
-int iface_map_get(struct iface_map **);
+void iface_map_init(void);
+int iface_map_get(void);
 
 /* pim.c */
 int pim_init(int);
