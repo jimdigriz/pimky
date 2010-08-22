@@ -9,6 +9,9 @@
 #include <net/if.h>
 #include <linux/if.h>
 #include <string.h>
+#include <netinet/in.h>
+#include <linux/mroute.h>
+#include <linux/mroute6.h>
 
 #include "pimky.h"
 
@@ -39,6 +42,7 @@ int iface_map_get(struct iface_map **iface_map)
 	struct iface_map_addr *ifma;
 	struct iface_map *ifm;
 	int ifindex;
+	int cifv4 = 0, cifv6 = 0;
 	int ret = EX_OK;
 
 	iface_map_free(*iface_map);
@@ -69,10 +73,15 @@ int iface_map_get(struct iface_map **iface_map)
 				&& ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
 
+		if (mroute4 < 0 && ifa->ifa_addr->sa_family == AF_INET)
+			continue;
+		if (mroute6 < 0 && ifa->ifa_addr->sa_family == AF_INET6)
+			continue;
+
 		ifindex = if_nametoindex(ifa->ifa_name);
 		assert(ifindex);
 
-		for (ifm = *iface_map; ifm != NULL; ifm = ifm->next)
+		for (ifm = (*iface_map)->next; ifm != NULL; ifm = ifm->next)
 			if (ifm->index == ifindex)
 				break;
 		if (ifm == NULL) {
@@ -129,6 +138,22 @@ int iface_map_get(struct iface_map **iface_map)
 			memcpy(&ifma->ifu.broadaddr,
 					ifa->ifa_ifu.ifu_broadaddr, sizeof(struct sockaddr));
 	}
+
+	/* check we are not exceeding MAXVIFS or MAXMIFS */
+	for (ifm = (*iface_map)->next; ifm != NULL; ifm = ifm->next) {
+		for (ifma = ifm->addr->next; ifma != NULL; ifma = ifma->next)
+			if (ifma->addr.sa_family == AF_INET) {
+				cifv4++;
+				break;
+			}
+		for (ifma = ifm->addr->next; ifma != NULL; ifma = ifma->next)
+			if (ifma->addr.sa_family == AF_INET6) {
+				cifv6++;
+				break;
+			}
+	}
+	assert(cifv4 < MAXVIFS);
+	assert(cifv6 < MAXMIFS);
 
 ifaddrs:
 	freeifaddrs(ifaddr);

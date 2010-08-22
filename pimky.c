@@ -292,10 +292,6 @@ int main(int argc, char **argv)
 
 	logger(LOG_NOTICE, 0, "started");
 
-	ret = iface_map_get(&iface_map);
-	if (ret < 0)
-		goto exit;
-
 	mroute4 = socket(AF_INET, SOCK_RAW, IPPROTO_IGMP);
 	if (mroute4 < 0)
 		logger(LOG_WARNING, errno, "no IPv4 support");
@@ -326,6 +322,10 @@ int main(int argc, char **argv)
 		ret = EX_OSERR;
 		goto exit;
 	}
+
+	ret = iface_map_get(&iface_map);
+	if (ret < 0)
+		goto exit;
 
 	errno = 0;
 	grgid = getgrnam(gid);

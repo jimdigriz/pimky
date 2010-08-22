@@ -11,9 +11,8 @@
 
 /* defaults */
 extern int		debug;
-extern unsigned int	nofork;
-extern char		*uid;
-extern char		*gid;
+extern int		mroute4, mroute6;
+extern int		pim4, pim6;
 
 #define RFC3376_RFC3810_Query_Interval	125
 #define RFC4601_Hello_Period		 30
