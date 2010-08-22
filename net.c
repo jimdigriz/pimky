@@ -18,7 +18,7 @@ void iface_map_free(struct iface_map *iface_map)
 
 	for (ifm = iface_map; ifm != NULL; ifm = &ifm[1]) {
 		free(ifm->addr);
-		if (!(ifm->flags & IFF_LOOPBACK))
+		if (!(ifm->flags & IFACE_MAP_CONT))
 			break;
 	}
 
@@ -60,7 +60,7 @@ int iface_map_get(struct iface_map **iface_map)
 		for (ifm = *iface_map; ifm != NULL; ifm = &ifm[1]) {
 			if (ifm->index == ifindex)
 				break;
-			if (!(ifm->flags & IFF_LOOPBACK)) {
+			if (!(ifm->flags & IFACE_MAP_CONT)) {
 				ifm = NULL;
 				break;
 			}
@@ -77,7 +77,7 @@ int iface_map_get(struct iface_map **iface_map)
 			memset(ifm, 0, sizeof(struct iface_map));
 
 			if (i > 0)
-				ifm[-1].flags |= IFF_LOOPBACK;
+				ifm[-1].flags |= IFACE_MAP_CONT;
 
 			ifm->index	= ifindex;
 			ifm->flags	= ifa->ifa_flags;
@@ -89,7 +89,7 @@ int iface_map_get(struct iface_map **iface_map)
 		j = 0;
 		for (ifma = ifm->addr; ifma != NULL; ifma = &ifma[1]) {
 			j++;
-			if (!(ifma->flags & IFF_LOOPBACK))
+			if (!(ifma->flags & IFACE_MAP_CONT))
 				break;
 		}
 		ifm->addr = realloc(ifm->addr, (j+1)*sizeof(struct iface_map_addr));
@@ -103,11 +103,11 @@ int iface_map_get(struct iface_map **iface_map)
 		memset(ifma, 0, sizeof(struct iface_map_addr));
 
 		if (j > 0)
-			ifma[-1].flags |= IFF_LOOPBACK;
+			ifma[-1].flags |= IFACE_MAP_CONT;
 
 		ifma->flags = ifa->ifa_flags;
 		/* I assume the following always holds true */
-		assert((ifm->flags | IFF_LOOPBACK) == (ifma->flags | IFF_LOOPBACK));
+		assert((ifm->flags | IFACE_MAP_CONT) == (ifma->flags | IFACE_MAP_CONT));
 
 		memcpy(&ifma->addr, ifa->ifa_addr, sizeof(struct sockaddr));
 		if (ifa->ifa_netmask)
