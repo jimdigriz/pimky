@@ -307,9 +307,10 @@ int main(int argc, char **argv)
 		if (pim4 < 0) {
 			close(mroute4);
 			mroute4 = -1;
+		} else {
+			add_poll(fds, &nfds, mroute4);
+			add_poll(fds, &nfds, pim4);
 		}
-		add_poll(fds, &nfds, mroute4);
-		add_poll(fds, &nfds, pim4);
 	}
 	mroute6 = socket(AF_INET6, SOCK_RAW, IPPROTO_ICMPV6);
 	if (mroute6 < 0)
@@ -319,9 +320,10 @@ int main(int argc, char **argv)
 		if (pim6 < 0) {
 			close(mroute6);
 			mroute6 = -1;
+		} else {
+			add_poll(fds, &nfds, mroute6);
+			add_poll(fds, &nfds, pim6);
 		}
-		add_poll(fds, &nfds, mroute6);
-		add_poll(fds, &nfds, pim6);
 	}
 
 	if (mroute4 < 0 && mroute6 < 0) {
