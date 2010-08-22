@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <sys/types.h>
+/* uClibc: UCLIBC_USE_NETLINK && UCLIBC_SUPPORT_AI_ADDRCONFIG */
 #include <ifaddrs.h>
 #include <net/if.h>
 #include <linux/if.h>
@@ -67,6 +68,10 @@ int iface_map_get(struct iface_map **iface_map)
 			continue;
 
 		if (ifa->ifa_flags & (IFF_LOOPBACK | IFF_SLAVE))
+			continue;
+
+		/* BSD populates struct per interface, not per address */
+		if (ifa->ifa_addr == NULL)
 			continue;
 
 		if (ifa->ifa_addr->sa_family != AF_INET
