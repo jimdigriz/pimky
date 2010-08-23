@@ -153,11 +153,9 @@ int iface_map_get(void)
 		if (ifa->ifa_netmask)
 			memcpy(&ifma->netmask, ifa->ifa_netmask, sizeof(struct sockaddr));
 		if (ifa->ifa_flags & IFF_POINTOPOINT)
-			memcpy(&ifma->ifu.dstaddr,
-					ifa->ifa_ifu.ifu_dstaddr, sizeof(struct sockaddr));
-		else if (ifa->ifa_flags & IFF_BROADCAST && ifa->ifa_ifu.ifu_broadaddr)
-			memcpy(&ifma->ifu.broadaddr,
-					ifa->ifa_ifu.ifu_broadaddr, sizeof(struct sockaddr));
+			memcpy(&ifma->ifu.dstaddr, ifa->ifa_dstaddr, sizeof(struct sockaddr));
+		else if (ifa->ifa_flags & IFF_BROADCAST && ifa->ifa_broadaddr)
+			memcpy(&ifma->ifu.broadaddr, ifa->ifa_broadaddr, sizeof(struct sockaddr));
 	}
 
 	/* check we are not exceeding MAXVIFS or MAXMIFS */
