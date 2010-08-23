@@ -78,8 +78,13 @@ int iface_map_get(void)
 		if (!(ifa->ifa_flags & (IFF_UP | IFF_MULTICAST)))
 			continue;
 
-		if (ifa->ifa_flags & (IFF_LOOPBACK | IFF_SLAVE))
+		if (ifa->ifa_flags & IFF_LOOPBACK)
 			continue;
+
+#ifdef __linux
+		if (ifa->ifa_flags & IFF_SLAVE)
+			continue;
+#endif
 
 		/* BSD populates struct per interface, not per address */
 		if (ifa->ifa_addr == NULL)
