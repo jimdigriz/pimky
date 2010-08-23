@@ -207,8 +207,8 @@ int pim_register(int sock, int type)
 	struct sockaddr_storage	addr;
 	int 			ret = EX_OK;
 
-	memset(&ifctl, 0, sizeof(struct pimky_ifctl));
-	memset(&addr, 0, sizeof(struct sockaddr_storage));
+	memset(&ifctl, 0, sizeof(ifctl));
+	memset(&addr, 0, sizeof(addr));
 
 	switch (type) {
 	case AF_INET:

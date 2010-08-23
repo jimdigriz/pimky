@@ -150,13 +150,13 @@ int iface_map_get(void)
 		/* I assume the following always holds true */
 		assert(ifm->flags == ifma->flags);
 
-		memcpy(&ifma->addr, ifa->ifa_addr, sizeof(struct sockaddr_storage));
+		memcpy(&ifma->addr, ifa->ifa_addr, sizeof(ifma->addr));
 		if (ifa->ifa_netmask)
-			memcpy(&ifma->netmask, ifa->ifa_netmask, sizeof(struct sockaddr_storage));
+			memcpy(&ifma->netmask, ifa->ifa_netmask, sizeof(ifma->netmask));
 		if (ifa->ifa_flags & IFF_POINTOPOINT)
-			memcpy(&ifma->ifu.dstaddr, ifa->ifa_dstaddr, sizeof(struct sockaddr_storage));
+			memcpy(&ifma->ifu.dstaddr, ifa->ifa_dstaddr, sizeof(ifma->ifu.dstaddr));
 		else if (ifa->ifa_flags & IFF_BROADCAST && ifa->ifa_broadaddr)
-			memcpy(&ifma->ifu.broadaddr, ifa->ifa_broadaddr, sizeof(struct sockaddr_storage));
+			memcpy(&ifma->ifu.broadaddr, ifa->ifa_broadaddr, sizeof(ifma->ifu.broadaddr));
 	}
 
 	/* check we are not exceeding MAXVIFS or MAXMIFS */

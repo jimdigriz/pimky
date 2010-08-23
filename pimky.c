@@ -251,7 +251,7 @@ int main(int argc, char **argv)
 	struct pollfd		fds[4];
 	nfds_t			nfds = 0;
 	struct sockaddr_storage	src_addr;
-	socklen_t		addrlen = sizeof(struct sockaddr_storage);
+	socklen_t		addrlen = sizeof(src_addr);
 	char			*buf;
 
 	ret = parse_args(argc, argv);
