@@ -8,8 +8,6 @@ else
 	CFLAGS += -DNDEBUG -Os
 endif
 
-STRIP=strip
-
 OBJS = utils.o net.o pim.o mld.o pimky.o
 
 pimky: $(OBJS)
