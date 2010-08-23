@@ -25,13 +25,13 @@
 #include <stdio.h>
 #include <netinet/ip.h>
 #include <netinet/icmp6.h>
+
 #if defined(__linux__)
 #include <linux/mroute.h>
 #include <linux/mroute6.h>
 #elif defined(__APPLE__)
-#include <netinet6/in6.h>
-#else
-#error "add your OS here"
+#include <netinet/ip_mroute.h>
+#include <netinet6/ip6_mroute.h>
 #endif
 
 int pim_init(int sock)
@@ -54,11 +54,13 @@ int pim_init(int sock)
 			return ret;
 		}
 
+#ifdef __linux__
 		ret = setsockopt(sock, IPPROTO_IP, MRT_PIM, (void *)&v, sizeof(v));
 		if (ret < 0) {
 			logger(LOG_ERR, errno, "%s(): setsockopt(MRT_PIM)", __func__);
 			return ret;
 		}
+#endif
 
 		break;
 	case AF_INET6:
@@ -110,11 +112,13 @@ int pim_shutdown(int sock)
 
 	switch (type) {
 	case AF_INET:
+#ifdef __linux__
 		ret = setsockopt(sock, IPPROTO_IP, MRT_PIM, (void *)&v, sizeof(v));
 		if (ret < 0) {
 			logger(LOG_ERR, errno, "%s(): setsockopt(MRT_PIM)", __func__);
 			return ret;
 		}
+#endif
 
 		ret = setsockopt(sock, IPPROTO_IP, MRT_DONE, (void *)NULL, 0);
 		if (ret < 0) {
