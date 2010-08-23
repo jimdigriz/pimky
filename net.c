@@ -27,9 +27,11 @@
 /* uClibc: UCLIBC_USE_NETLINK && UCLIBC_SUPPORT_AI_ADDRCONFIG */
 #include <ifaddrs.h>
 
-#ifdef __linux
+#ifdef __linux__
 #include <linux/mroute.h>
 #include <linux/mroute6.h>
+#ifdef __APPLE__
+#include <netinet6/in6.h>
 #else
 #error "add your OS here"
 #endif
@@ -81,7 +83,7 @@ int iface_map_get(void)
 		if (ifa->ifa_flags & IFF_LOOPBACK)
 			continue;
 
-#ifdef __linux
+#ifdef __linux__
 		if (ifa->ifa_flags & IFF_SLAVE)
 			continue;
 #endif
