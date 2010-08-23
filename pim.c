@@ -25,10 +25,10 @@
 #include <stdio.h>
 #include <netinet/ip.h>
 #include <netinet/icmp6.h>
-#ifdef __linux__
+#if defined(__linux__)
 #include <linux/mroute.h>
 #include <linux/mroute6.h>
-#ifdef __APPLE__
+#elif defined(__APPLE__)
 #include <netinet6/in6.h>
 #else
 #error "add your OS here"
