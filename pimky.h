@@ -26,8 +26,8 @@
 #include <assert.h>
 
 #include <stdint.h>
-#include <net/if.h>
 #include <netinet/in.h>
+#include <net/if.h>
 
 #define	VERSION		"2010081100"
 
