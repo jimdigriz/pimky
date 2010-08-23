@@ -24,6 +24,7 @@
 
 #include <stdio.h>
 #include <netinet/ip.h>
+#include <string.h>
 #include <netinet/icmp6.h>
 
 #if defined(__linux__)
