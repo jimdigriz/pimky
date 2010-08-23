@@ -158,7 +158,7 @@ void pim_hello_send(void)
 void pim_recv(int sock, void *buf, int len,
 		struct sockaddr *src_addr, socklen_t addrlen)
 {
-	struct iphdr	*ip;
+	struct ip	*ip;
 	struct pimhdr	*pim;
 
 	printf("called %s\n", __func__);
@@ -167,17 +167,18 @@ void pim_recv(int sock, void *buf, int len,
 	case AF_INET:
 		ip	= buf;
 
-		assert(ip->version == 4);
-		assert(ip->ihl >= 5);
-		assert(ntohs(ip->tot_len) == len);
+		assert(ip->ip_v == 4);
+		assert(ip->ip_hl >= 5);
+		assert(ntohs(ip->ip_len) == len);
 		/* TODO do we handle fragments? */
-		assert(ntohs(ip->frag_off) == 0 || ntohs(ip->frag_off) & 0x4000);
+		assert(ntohs(ip->ip_off) & IP_OFFMASK == 0
+				&& ntohs(ip->ip_off) & (~IP_OFFMASK) != IP_MF);
 		/* assert(ip->ttl == 1); */
 		assert(ip->protocol == IPPROTO_PIM);
 		assert(cksum(ip, ip->ihl << 2) == 0xffff);
 		assert(IN_MULTICAST(ntohl(ip->daddr)));
 
-		pim	= (struct pimhdr *) ((char *)buf + (ip->ihl << 2));
+		pim	= (struct pimhdr *) ((char *)buf + (ip->ip_hl << 2));
 
 		assert(pim->ver == 2);
 		assert(pim->reserved == 0);	/* TODO ignore */
