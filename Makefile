@@ -10,10 +10,8 @@ all: env pimky
 env:
 ifeq ($(KERNEL), Linux)
 CFLAGS += -D_BSD_SOURCE
-#else ifeq ($(KERNEL), FreeBSD)
-#CFLAGS += -D__BSD_VISIBLE
-else ifeq ($(KERNEL), Darwin)
-CFLAGS += -D_DARWIN_C_SOURCE
+else ifeq ($(KERNEL), FreeBSD)
+CFLAGS += -D__BSD_VISIBLE
 else
 	@echo Sorry \'$(KERNEL)\' is not supported
 	@false
