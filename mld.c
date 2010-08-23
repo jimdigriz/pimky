@@ -34,26 +34,27 @@ void mld_query_send(void)
 void mld_recv(int sock, void *buf, int len,
 		struct sockaddr *src_addr, socklen_t addrlen)
 {
-	struct iphdr	*ip;
+	struct ip	*ip;
 	struct igmp	*igmp;
 
 	printf("called %s\n", __func__);
 
 	switch (src_addr->sa_family) {
 	case AF_INET:
-		ip	= (struct iphdr *) buf;
+		ip	= buf;
 
-		assert(ip->version == 4);
-		assert(ip->ihl >= 5);
-		assert(ntohs(ip->tot_len) == len);
+		assert(ip->ip_v == 4);
+		assert(ip->ip_hl >= 5);
+		assert(ntohs(ip->ip_len) == len);
 		/* TODO do we handle fragments? */
-		assert(ntohs(ip->frag_off) == 0 || ntohs(ip->frag_off) & 0x4000);
-		assert(ip->ttl == 1);
-		assert(ip->protocol == IPPROTO_IGMP);
-		assert(cksum(ip, ip->ihl << 2) == 0xffff);
-		assert(IN_MULTICAST(ntohl(ip->daddr)));
+		assert(ntohs(ip->ip_off) & IP_OFFMASK == 0
+				&& ntohs(ip->ip_off) & (~IP_OFFMASK) != IP_MF);
+		assert(ip->ip_ttl == 1);
+		assert(ip->ip_p == IPPROTO_IGMP);
+		assert(cksum(ip, ip->ip_hl << 2) == 0xffff);
+		assert(IN_MULTICAST(ntohl(ip->ip_dst)));
 
-		igmp	= (struct igmp *) ((char *)buf + (ip->ihl << 2));
+		igmp	= (struct igmp *) ((char *)buf + (ip->ip_hl << 2));
 
 		assert(cksum(igmp, sizeof(struct igmp)) == 0xffff);
 
