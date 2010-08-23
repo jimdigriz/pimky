@@ -11,6 +11,7 @@ env:
 ifeq ($(KERNEL), Linux)
 CFLAGS += -D_BSD_SOURCE
 else ifeq ($(KERNEL), FreeBSD)
+	@echo FreeBSD untested, expect your pants to explode!
 CFLAGS += -D__BSD_VISIBLE
 else
 	@echo Sorry \'$(KERNEL)\' is not supported
