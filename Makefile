@@ -1,4 +1,4 @@
-CFLAGS=-pipe -Wall -pedantic -D_ISOC99_SOURCE -D_BSD_SOURCE
+CFLAGS=-pipe -Wall -pedantic -D_POSIX_C_SOURCE=200112L -D_BSD_SOURCE
 LDFLAGS=-lrt
 
 ifdef DEBUG
