@@ -31,9 +31,8 @@
 #include <linux/mroute.h>
 #include <linux/mroute6.h>
 #elif defined(__APPLE__)
-#include <netinet6/in6.h>
-#else
-#error "add your OS here"
+#include <netinet/ip_mroute.h>
+#include <netinet6/ip6_mroute.h>
 #endif
 
 void iface_map_init(void)
@@ -200,8 +199,8 @@ int mcast_add(int sock, struct sockaddr_storage *addr)
 		}
 		break;
 	case AF_INET6:
-		if (setsockopt(sock, IPPROTO_IPV6, IPV6_ADD_MEMBERSHIP, &mreq, sizeof(mreq)) < 0) {
-			logger(LOG_ERR, errno, "%s(): setsockopt(IPV6_ADD_MEMBERSHIP)", __func__);
+		if (setsockopt(sock, IPPROTO_IPV6, IPV6_JOIN_GROUP, &mreq, sizeof(mreq)) < 0) {
+			logger(LOG_ERR, errno, "%s(): setsockopt(IPV6_JOIN_GROUP)", __func__);
 			return -EX_OSERR;
 		}
 		break;
@@ -226,7 +225,6 @@ int vif_add(int sock, int type, struct pimky_ifctl *ifctl)
 	case AF_INET:
 		mif.v4.vifc_vifi	= ifctl->ifi;
 		mif.v4.vifc_flags	= ifctl->flags;
-		mif.v4.vifc_threshold	= ifctl->threshold;
 
 		if (setsockopt(sock, IPPROTO_IP, MRT_ADD_VIF, &mif, sizeof(mif)) < 0) {
 			logger(LOG_ERR, errno, "%s(): setsockopt(MRT_ADD_VIF)", __func__);
@@ -236,7 +234,6 @@ int vif_add(int sock, int type, struct pimky_ifctl *ifctl)
 	case AF_INET6:
 		mif.v6.mif6c_mifi	= ifctl->ifi;
 		mif.v6.mif6c_flags	= ifctl->flags;
-		mif.v6.vifc_threshold	= ifctl->threshold;
 
 		if (setsockopt(sock, IPPROTO_IPV6, MRT_ADD_VIF, &mif, sizeof(mif)) < 0) {
 			logger(LOG_ERR, errno, "%s(): setsockopt(MRT6_ADD_VIF)", __func__);

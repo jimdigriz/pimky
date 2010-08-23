@@ -26,6 +26,7 @@
 #include <assert.h>
 
 #include <stdint.h>
+#include <sys/socket.h>
 #include <netinet/in.h>
 #include <net/if.h>
 
@@ -76,7 +77,6 @@ enum {
 struct pimky_ifctl {
 	unsigned short	ifi;
 	unsigned char	flags;
-	unsigned char	threshold;
 };
 
 struct iface_map_addr {
