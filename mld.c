@@ -32,14 +32,14 @@ void mld_query_send(void)
 }
 
 void mld_recv(int sock, void *buf, int len,
-		struct sockaddr *src_addr, socklen_t addrlen)
+		struct sockaddr_storage *src_addr, socklen_t addrlen)
 {
 	struct ip	*ip;
 	struct igmp	*igmp;
 
 	printf("called %s\n", __func__);
 
-	switch (src_addr->sa_family) {
+	switch (src_addr->ss_family) {
 	case AF_INET:
 		ip	= buf;
 
@@ -47,12 +47,12 @@ void mld_recv(int sock, void *buf, int len,
 		assert(ip->ip_hl >= 5);
 		assert(ntohs(ip->ip_len) == len);
 		/* TODO do we handle fragments? */
-		assert(ntohs(ip->ip_off) & IP_OFFMASK == 0
-				&& ntohs(ip->ip_off) & (~IP_OFFMASK) != IP_MF);
+		assert((ntohs(ip->ip_off) & IP_OFFMASK) == 0
+				&& (ntohs(ip->ip_off) & (~IP_OFFMASK)) != IP_MF);
 		assert(ip->ip_ttl == 1);
 		assert(ip->ip_p == IPPROTO_IGMP);
 		assert(cksum(ip, ip->ip_hl << 2) == 0xffff);
-		assert(IN_MULTICAST(ntohl(ip->ip_dst)));
+		assert(IN_MULTICAST(ip->ip_dst.s_addr));
 
 		igmp	= (struct igmp *) ((char *)buf + (ip->ip_hl << 2));
 
@@ -67,6 +67,6 @@ void mld_recv(int sock, void *buf, int len,
 	case AF_INET6:
 		break;
 	default:
-		logger(LOG_WARNING, 0, "%s(): unknown socket type: %d", __func__, src_addr->sa_family);
+		logger(LOG_WARNING, 0, "%s(): unknown socket type: %d", __func__, src_addr->ss_family);
 	}
 }

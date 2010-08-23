@@ -83,11 +83,11 @@ struct iface_map_addr {
 	struct iface_map_addr	*next;
 
 	unsigned int		flags;
-	struct sockaddr		addr;
-	struct sockaddr		netmask;
+	struct sockaddr_storage	addr;
+	struct sockaddr_storage	netmask;
 	union {
-		struct sockaddr	broadaddr;
-		struct sockaddr	dstaddr;
+		struct sockaddr_storage	broadaddr;
+		struct sockaddr_storage	dstaddr;
 	} ifu;
 };
 
@@ -115,9 +115,9 @@ int vif_add(int, int, struct pimky_ifctl *);
 int pim_init(int);
 int pim_shutdown(int);
 void pim_hello_send(void);
-void pim_recv(int, void *, int, struct sockaddr *, socklen_t);
+void pim_recv(int, void *, int, struct sockaddr_storage *, socklen_t);
 int pim_register(int, int);
 
 /* mld.c */
 void mld_query_send(void);
-void mld_recv(int, void *, int, struct sockaddr *, socklen_t);
+void mld_recv(int, void *, int, struct sockaddr_storage *, socklen_t);

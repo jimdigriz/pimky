@@ -23,8 +23,9 @@
 #include "pimky.h"
 
 #include <stdio.h>
-#include <netinet/ip.h>
 #include <string.h>
+#include <arpa/inet.h>
+#include <netinet/ip.h>
 #include <netinet/icmp6.h>
 
 #if defined(__linux__)
@@ -156,14 +157,14 @@ void pim_hello_send(void)
 }
 
 void pim_recv(int sock, void *buf, int len,
-		struct sockaddr *src_addr, socklen_t addrlen)
+		struct sockaddr_storage *src_addr, socklen_t addrlen)
 {
 	struct ip	*ip;
 	struct pimhdr	*pim;
 
 	printf("called %s\n", __func__);
 
-	switch (src_addr->sa_family) {
+	switch (src_addr->ss_family) {
 	case AF_INET:
 		ip	= buf;
 
@@ -171,12 +172,12 @@ void pim_recv(int sock, void *buf, int len,
 		assert(ip->ip_hl >= 5);
 		assert(ntohs(ip->ip_len) == len);
 		/* TODO do we handle fragments? */
-		assert(ntohs(ip->ip_off) & IP_OFFMASK == 0
-				&& ntohs(ip->ip_off) & (~IP_OFFMASK) != IP_MF);
+		assert((ntohs(ip->ip_off) & IP_OFFMASK) == 0
+				&& (ntohs(ip->ip_off) & (~IP_OFFMASK)) != IP_MF);
 		/* assert(ip->ip_ttl == 1); */
 		assert(ip->ip_p == IPPROTO_PIM);
 		assert(cksum(ip, ip->ip_hl << 2) == 0xffff);
-		assert(IN_MULTICAST(ntohl(ip->ip_dst)));
+		assert(IN_MULTICAST(ip->ip_dst.s_addr));
 
 		pim	= (struct pimhdr *) ((char *)buf + (ip->ip_hl << 2));
 
@@ -196,7 +197,7 @@ void pim_recv(int sock, void *buf, int len,
 	case AF_INET6:
 		break;
 	default:
-		logger(LOG_WARNING, 0, "%s(): unknown socket type: %d", __func__, src_addr->sa_family);
+		logger(LOG_WARNING, 0, "%s(): unknown socket type: %d", __func__, src_addr->ss_family);
 	}
 }
 

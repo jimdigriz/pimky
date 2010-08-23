@@ -198,7 +198,7 @@ int prime_timers(timer_t *mld, timer_t *pim)
 		logger(LOG_ERR, errno, "timer_settime(mld)");
 		goto mld;
 	}
-return 0;
+
 	event.sigev_signo	= SIGUSR2;
 	if (timer_create(CLOCK_MONOTONIC, &event, pim)) {
 		logger(LOG_ERR, errno, "timer_create(pim)");
@@ -250,8 +250,8 @@ int main(int argc, char **argv)
 	timer_t			timerid_mld, timerid_pim;
 	struct pollfd		fds[4];
 	nfds_t			nfds = 0;
-	struct sockaddr		src_addr;
-	socklen_t		addrlen;
+	struct sockaddr_storage	src_addr;
+	socklen_t		addrlen = sizeof(struct sockaddr_storage);
 	char			*buf;
 
 	ret = parse_args(argc, argv);
@@ -375,7 +375,7 @@ int main(int argc, char **argv)
 				continue;
 
 			if (fds[i].revents & POLLIN) {
-				ret = recvfrom(fds[i].fd, buf, SOCK_BUFLEN, 0, &src_addr, &addrlen);
+				ret = recvfrom(fds[i].fd, buf, SOCK_BUFLEN, 0, (struct sockaddr *)&src_addr, &addrlen);
 				if (ret < 0) {
 					logger(LOG_WARNING, errno, "recvfrom()");
 					continue;

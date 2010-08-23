@@ -150,24 +150,24 @@ int iface_map_get(void)
 		/* I assume the following always holds true */
 		assert(ifm->flags == ifma->flags);
 
-		memcpy(&ifma->addr, ifa->ifa_addr, sizeof(struct sockaddr));
+		memcpy(&ifma->addr, ifa->ifa_addr, sizeof(struct sockaddr_storage));
 		if (ifa->ifa_netmask)
-			memcpy(&ifma->netmask, ifa->ifa_netmask, sizeof(struct sockaddr));
+			memcpy(&ifma->netmask, ifa->ifa_netmask, sizeof(struct sockaddr_storage));
 		if (ifa->ifa_flags & IFF_POINTOPOINT)
-			memcpy(&ifma->ifu.dstaddr, ifa->ifa_dstaddr, sizeof(struct sockaddr));
+			memcpy(&ifma->ifu.dstaddr, ifa->ifa_dstaddr, sizeof(struct sockaddr_storage));
 		else if (ifa->ifa_flags & IFF_BROADCAST && ifa->ifa_broadaddr)
-			memcpy(&ifma->ifu.broadaddr, ifa->ifa_broadaddr, sizeof(struct sockaddr));
+			memcpy(&ifma->ifu.broadaddr, ifa->ifa_broadaddr, sizeof(struct sockaddr_storage));
 	}
 
 	/* check we are not exceeding MAXVIFS or MAXMIFS */
 	for (ifm = iface_map.next; ifm != NULL; ifm = ifm->next) {
 		for (ifma = ifm->addr->next; ifma != NULL; ifma = ifma->next)
-			if (ifma->addr.sa_family == AF_INET) {
+			if (ifma->addr.ss_family == AF_INET) {
 				cifv4++;
 				break;
 			}
 		for (ifma = ifm->addr->next; ifma != NULL; ifma = ifma->next)
-			if (ifma->addr.sa_family == AF_INET6) {
+			if (ifma->addr.ss_family == AF_INET6) {
 				cifv6++;
 				break;
 			}
