@@ -177,7 +177,7 @@ void pim_recv(int sock, void *buf, int len,
 		/* assert(ip->ip_ttl == 1); */
 		assert(ip->ip_p == IPPROTO_PIM);
 		assert(cksum(ip, ip->ip_hl << 2) == 0xffff);
-		assert(IN_MULTICAST(ip->ip_dst.s_addr));
+		assert(IN_MULTICAST(ntohl(ip->ip_dst.s_addr)));
 
 		pim	= (struct pimhdr *) ((char *)buf + (ip->ip_hl << 2));
 
