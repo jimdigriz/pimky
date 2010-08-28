@@ -77,6 +77,7 @@ enum {
 struct pimky_ifctl {
 	unsigned short	ifi;
 	unsigned char	flags;
+	unsigned char	threshold;
 };
 
 struct iface_map_addr {
@@ -104,19 +105,20 @@ struct iface_map {
 void logger(int severity, int syserr, const char *format, ...);
 int socktype(int sock);
 uint16_t cksum(void *, int);
+int family_to_level(int);
 
 /* net.c */
 void iface_map_init(void);
 int iface_map_get(void);
-int mcast_add(int, struct sockaddr_storage *);
-int vif_add(int, int, struct pimky_ifctl *);
+int mcast_join(int, struct sockaddr_storage *);
+int vif_add(int, struct pimky_ifctl *);
 
 /* pim.c */
 int pim_init(int);
 int pim_shutdown(int);
 void pim_hello_send(void);
 void pim_recv(int, void *, int, struct sockaddr_storage *, socklen_t);
-int pim_register(int, int);
+int pim_register(int);
 
 /* mld.c */
 void mld_query_send(void);

@@ -22,6 +22,7 @@
 
 #include "pimky.h"
 
+#include <unistd.h>
 #include <stdio.h>
 #include <string.h>
 #include <arpa/inet.h>
@@ -97,7 +98,11 @@ int pim_init(int sock)
 		return -EX_OSERR;
 	}
 
-	ret = pim_register(sock, type);
+	ret = pim_register(sock);
+	if (ret < 0) {
+		close(pim);
+		return ret;
+	}
 
 	return pim;
 }
@@ -201,31 +206,57 @@ void pim_recv(int sock, void *buf, int len,
 	}
 }
 
-int pim_register(int sock, int type)
+int pim_register(int sock)
 {
 	struct pimky_ifctl	ifctl;
 	struct sockaddr_storage	addr;
-	int 			ret = EX_OK;
+	struct sockaddr_in	*sin;
+	struct sockaddr_in6	*sin6;
+	int			type;
+	int 			ret;
+
+	type = socktype(sock);
+	if (type < 0)
+		return type;
+
+	ret = EX_OK;
 
 	memset(&ifctl, 0, sizeof(ifctl));
 	memset(&addr, 0, sizeof(addr));
 
+	ifctl.ifi	= 0;
+	ifctl.threshold	= 1;
+
 	switch (type) {
 	case AF_INET:
 		ifctl.flags	= VIFF_REGISTER;
+
+		sin		= (struct sockaddr_in *)&addr;
+		ret = inet_pton(AF_INET, "224.0.0.13", &sin->sin_addr);
+		if (ret <= 0) {
+			logger(LOG_ERR, errno, "unable to convert 224.0.0.13");
+			return -EX_SOFTWARE;
+		}
 		break;
 	case AF_INET6:
 		ifctl.flags	= MIFF_REGISTER;
+
+		sin6		= (struct sockaddr_in6 *)&addr;
+		ret = inet_pton(AF_INET6, "ff02::d", &sin6->sin6_addr);
+		if (ret <= 0) {
+			logger(LOG_ERR, errno, "unable to convert ff02::d");
+			return -EX_SOFTWARE;
+		}
 		break;
 	default:
 		logger(LOG_ERR, 0, "%s(): unknown socket type: %d", __func__, type);
 		return -EX_SOFTWARE;
 	}
 
-	ret = vif_add(sock, type, &ifctl);
+	ret = vif_add(sock, &ifctl);
 	if (!ret) {
 		addr.ss_family = type;
-		ret = mcast_add(sock, &addr);
+		ret = mcast_join(sock, &addr);
 	}
 
 	return ret;

@@ -95,3 +95,16 @@ uint16_t cksum(void *buf, int len)
 
 	return sum;
 }
+
+int family_to_level(int type)
+{
+	switch (type) {
+	case AF_INET:
+		return IPPROTO_IP;
+	case AF_INET6:
+		return IPPROTO_IPV6;
+	default:
+		logger(LOG_ERR, 0, "%s(): unknown socket type: %d", __func__, type);
+		return -EX_SOFTWARE;
+	}
+}

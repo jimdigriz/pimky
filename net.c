@@ -182,42 +182,44 @@ exit:
 	return ret;
 }
 
-int mcast_add(int sock, struct sockaddr_storage *addr)
+int mcast_join(int sock, struct sockaddr_storage *group)
 {
-	union {
-		struct ip_mreq		v4;
-		struct ipv6_mreq	v6;
-	} mreq;
+	struct group_req	greq;
+	int 			type, slevel;
 
-	memset(&mreq, 0, sizeof(mreq));
+	type = socktype(sock);
+	if (type < 0)
+		return type;
 
-	switch (addr->ss_family) {
-	case AF_INET:
-		if (setsockopt(sock, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq)) < 0) {
-			logger(LOG_ERR, errno, "%s(): setsockopt(IP_ADD_MEMBERSHIP)", __func__);
-			return -EX_OSERR;
-		}
-		break;
-	case AF_INET6:
-		if (setsockopt(sock, IPPROTO_IPV6, IPV6_JOIN_GROUP, &mreq, sizeof(mreq)) < 0) {
-			logger(LOG_ERR, errno, "%s(): setsockopt(IPV6_JOIN_GROUP)", __func__);
-			return -EX_OSERR;
-		}
-		break;
-	default:
-		logger(LOG_ERR, 0, "%s(): unknown socket type: %d", __func__, addr->ss_family);
-		return -EX_SOFTWARE;
+	assert(type == group->ss_family);
+
+	memset(&greq, 0, sizeof(greq));
+
+	slevel = family_to_level(type);
+	if (slevel < 0)
+		return slevel;
+
+	greq.gr_interface = 0;
+	memcpy(&greq.gr_group, group, sizeof(*group));
+	if (setsockopt(sock, slevel, MCAST_JOIN_GROUP, &greq, sizeof(greq)) < 0) {
+		logger(LOG_ERR, errno, "%s(): setsockopt(MCAST_JOIN_GROUP)", __func__);
+		return -EX_OSERR;
 	}
 
 	return EX_OK;
 }
 
-int vif_add(int sock, int type, struct pimky_ifctl *ifctl)
+int vif_add(int sock, struct pimky_ifctl *ifctl)
 {
+	int	 		type;
 	union {
 		struct vifctl	v4;
 		struct mif6ctl	v6;
 	} mif;
+
+	type = socktype(sock);
+	if (type < 0)
+		return type;
 
 	memset(&mif, 0, sizeof(mif));
 
@@ -225,6 +227,7 @@ int vif_add(int sock, int type, struct pimky_ifctl *ifctl)
 	case AF_INET:
 		mif.v4.vifc_vifi	= ifctl->ifi;
 		mif.v4.vifc_flags	= ifctl->flags;
+		mif.v4.vifc_threshold	= ifctl->threshold;
 
 		if (setsockopt(sock, IPPROTO_IP, MRT_ADD_VIF, &mif, sizeof(mif)) < 0) {
 			logger(LOG_ERR, errno, "%s(): setsockopt(MRT_ADD_VIF)", __func__);
@@ -234,6 +237,7 @@ int vif_add(int sock, int type, struct pimky_ifctl *ifctl)
 	case AF_INET6:
 		mif.v6.mif6c_mifi	= ifctl->ifi;
 		mif.v6.mif6c_flags	= ifctl->flags;
+		mif.v6.vifc_threshold	= ifctl->threshold;
 
 		if (setsockopt(sock, IPPROTO_IPV6, MRT6_ADD_MIF, &mif, sizeof(mif)) < 0) {
 			logger(LOG_ERR, errno, "%s(): setsockopt(MRT6_ADD_MIF)", __func__);
