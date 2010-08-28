@@ -235,8 +235,8 @@ int vif_add(int sock, int type, struct pimky_ifctl *ifctl)
 		mif.v6.mif6c_mifi	= ifctl->ifi;
 		mif.v6.mif6c_flags	= ifctl->flags;
 
-		if (setsockopt(sock, IPPROTO_IPV6, MRT_ADD_VIF, &mif, sizeof(mif)) < 0) {
-			logger(LOG_ERR, errno, "%s(): setsockopt(MRT6_ADD_VIF)", __func__);
+		if (setsockopt(sock, IPPROTO_IPV6, MRT6_ADD_MIF, &mif, sizeof(mif)) < 0) {
+			logger(LOG_ERR, errno, "%s(): setsockopt(MRT6_ADD_MIF)", __func__);
 			return -EX_OSERR;
 		}
 		break;
