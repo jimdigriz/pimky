@@ -1,6 +1,6 @@
 /*
  * This file is part of:
- * 	pimky - Slimline PIM Routing Daemon for IPv4 and IPv6
+ *	pimky - Slimline PIM Routing Daemon for IPv4 and IPv6
  * Copyright (C) 2010  Alexander Clouter <alex@digriz.org.uk>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -39,8 +39,8 @@
 
 int pim_init(int sock)
 {
-	int			type;
-	int			v = 1;
+	int			type, slevel, loop;
+	int			v;
 	int			ret;
 	struct icmp6_filter	filter;
 	int			pim;
@@ -49,41 +49,46 @@ int pim_init(int sock)
 	if (type < 0)
 		return type;
 
+	slevel = family_to_level(type);
+	if (slevel < 0)
+		return slevel;
+
+	v = 1;
 	switch (type) {
 	case AF_INET:
-		ret = setsockopt(sock, IPPROTO_IP, MRT_INIT, (void *)&v, sizeof(v));
+		ret = setsockopt(sock, slevel, MRT_INIT, &v, sizeof(v));
 		if (ret < 0) {
 			logger(LOG_ERR, errno, "%s(): setsockopt(MRT_INIT)", __func__);
-			return ret;
+			goto exit;
 		}
 
 #ifdef __linux__
-		ret = setsockopt(sock, IPPROTO_IP, MRT_PIM, (void *)&v, sizeof(v));
+		ret = setsockopt(sock, slevel, MRT_PIM, &v, sizeof(v));
 		if (ret < 0) {
 			logger(LOG_ERR, errno, "%s(): setsockopt(MRT_PIM)", __func__);
-			return ret;
+			goto exit;
 		}
 #endif
 
 		break;
 	case AF_INET6:
-		ret = setsockopt(sock, IPPROTO_IPV6, MRT6_INIT, (void *)&v, sizeof(v));
+		ret = setsockopt(sock, slevel, MRT6_INIT, &v, sizeof(v));
 		if (ret < 0) {
 			logger(LOG_ERR, errno, "%s(): setsockopt(MRT6_INIT)", __func__);
-			return ret;
+			goto exit;
 		}
 
 		ICMP6_FILTER_SETBLOCKALL(&filter);
-		ret = setsockopt(sock, IPPROTO_ICMPV6, ICMP6_FILTER, (void *)&filter, sizeof(filter));
+		ret = setsockopt(sock, IPPROTO_ICMPV6, ICMP6_FILTER, &filter, sizeof(filter));
 		if (ret < 0) {
 			logger(LOG_ERR, errno, "%s(): setsockopt(ICMP6_FILTER)", __func__);
-			return ret;
+			goto exit;
 		}
 
-		ret = setsockopt(sock, IPPROTO_IPV6, MRT6_PIM, (void *)&v, sizeof(v));
+		ret = setsockopt(sock, slevel, MRT6_PIM, &v, sizeof(v));
 		if (ret < 0) {
 			logger(LOG_ERR, errno, "%s(): setsockopt(MRT6_PIM)", __func__);
-			return ret;
+			goto exit;
 		}
 
 		break;
@@ -95,21 +100,37 @@ int pim_init(int sock)
 	pim = socket(type, SOCK_RAW, IPPROTO_PIM);
 	if (pim < 0) {
 		logger(LOG_ERR, errno, "%s(): socket(AF_INET, SOCK_RAW, IPPROTO_PIM)", __func__);
-		return -EX_OSERR;
+		goto exit;
+	}
+
+	if (slevel == IPPROTO_IP)
+		loop = IP_MULTICAST_LOOP;
+	else
+		loop = IPV6_MULTICAST_LOOP;
+	v = 0;
+	ret = setsockopt(sock, slevel, loop, &v, sizeof(v));
+	if (!ret)
+		ret = setsockopt(pim, slevel, loop, &v, sizeof(v));
+	if (ret < 0) {
+		logger(LOG_ERR, errno, "%s(): setsockopt(IP[V6]_MULTICAST_LOOP)", __func__);
+		goto pim;
 	}
 
 	ret = pim_register(sock);
-	if (ret < 0) {
-		close(pim);
-		return ret;
-	}
+	if (ret < 0)
+		goto pim;
 
 	return pim;
+
+pim:
+	close(pim);
+exit:
+	return -EX_OSERR;
 }
 
 int pim_shutdown(int sock)
 {
-	int			type;
+	int			type, slevel;
 	int			v = 0;
 	int			ret;
 
@@ -117,34 +138,38 @@ int pim_shutdown(int sock)
 	if (type < 0)
 		return type;
 
+	slevel = family_to_level(type);
+	if (slevel < 0)
+		return slevel;
+
 	switch (type) {
 	case AF_INET:
 #ifdef __linux__
-		ret = setsockopt(sock, IPPROTO_IP, MRT_PIM, (void *)&v, sizeof(v));
+		ret = setsockopt(sock, slevel, MRT_PIM, &v, sizeof(v));
 		if (ret < 0) {
 			logger(LOG_ERR, errno, "%s(): setsockopt(MRT_PIM)", __func__);
-			return ret;
+			return -EX_OSERR;
 		}
 #endif
 
-		ret = setsockopt(sock, IPPROTO_IP, MRT_DONE, (void *)NULL, 0);
+		ret = setsockopt(sock, slevel, MRT_DONE, NULL, 0);
 		if (ret < 0) {
 			logger(LOG_ERR, errno, "%s(): setsockopt(MRT_INIT)", __func__);
-			return ret;
+			return -EX_OSERR;
 		}
 
 		break;
 	case AF_INET6:
-		ret = setsockopt(sock, IPPROTO_IPV6, MRT6_PIM, (void *)&v, sizeof(v));
+		ret = setsockopt(sock, slevel, MRT6_PIM, &v, sizeof(v));
 		if (ret < 0) {
 			logger(LOG_ERR, errno, "%s(): setsockopt(MRT6_PIM)", __func__);
-			return ret;
+			return -EX_OSERR;
 		}
 
-		ret = setsockopt(sock, IPPROTO_IPV6, MRT6_DONE, (void *)NULL, 0);
+		ret = setsockopt(sock, slevel, MRT6_DONE, NULL, 0);
 		if (ret < 0) {
 			logger(LOG_ERR, errno, "%s(): setsockopt(MRT6_INIT)", __func__);
-			return ret;
+			return -EX_OSERR;
 		}
 
 		break;
@@ -158,7 +183,70 @@ int pim_shutdown(int sock)
 
 void pim_hello_send(void)
 {
+	struct iface_map	*ifm;
+	struct sockaddr_storage	addr;
+	struct sockaddr_in	*sin;
+	struct sockaddr_in6	*sin6;
+	int			ret;
+	char			pimpkt[sizeof(struct pimhdr)
+					+ sizeof(struct pimopt)];
+	struct pimhdr		*pim;
+	struct pimopt		*pimopt;
+	struct ip_mreqn		mreq;
+
 	fprintf(stderr, "sent pim hello\n");
+
+	memset(pimpkt, 0, sizeof(pimpkt));
+
+	pim	= (struct pimhdr *) &pimpkt;
+	pimopt	= (struct pimopt *) &pimpkt[sizeof(struct pimhdr)];
+
+	pim->ver			= 2;
+	pim->type			= PIM_HELLO;
+	pimopt->type			= htons(PIM_OPT_HOLDTIME);
+	pimopt->len			= htons(2);
+	pimopt->payload.holdtime	= htons(RFC4601_Default_Hello_Holdtime);
+
+	sin	= (struct sockaddr_in  *)&addr;
+	sin6	= (struct sockaddr_in6 *)&addr;
+	for (ifm = iface_map.next; ifm != NULL; ifm = ifm->next) {
+		if (ifm->ip.v4) {
+			addr.ss_family = AF_INET;
+			inet_pton(AF_INET, "224.0.0.13", &sin->sin_addr);
+
+			ret = mcast_join(mroute4, ifm->index, &addr);
+			assert(ret == EX_OK || ret == -EX_TEMPFAIL);
+
+			sin->sin_port = htons(IPPROTO_PIM);
+
+			memset(&mreq, 0, sizeof(mreq));
+			mreq.imr_ifindex = ifm->index;
+			ret = setsockopt(pim4, IPPROTO_IP, IP_MULTICAST_IF,
+					&mreq, sizeof(mreq));
+			if (!ret)
+				ret = sendto(pim4, pim, 10, 0,
+					(struct sockaddr *) &addr, sizeof(addr));
+			if (ret < 0)
+				logger(LOG_ERR, errno, "unable to send pim4 on %s", ifm->name);
+		}
+		if (ifm->ip.v6) {
+			addr.ss_family = AF_INET6;
+			inet_pton(AF_INET6, "ff02::d", &sin6->sin6_addr);
+
+			ret = mcast_join(mroute6, ifm->index, &addr);
+			assert(ret == EX_OK || ret == -EX_TEMPFAIL);
+
+			sin6->sin6_port = htons(IPPROTO_PIM);
+
+			ret = setsockopt(pim6, IPPROTO_IPV6, IPV6_MULTICAST_IF,
+					&ifm->index, sizeof(ifm->index));
+			if (!ret)
+				ret = sendto(pim6, pim, 10, 0,
+					(struct sockaddr *) &addr, sizeof(addr));
+			if (ret < 0)
+				logger(LOG_ERR, errno, "unable to send pim6 on %s", ifm->name);
+		}
+	}
 }
 
 void pim_recv(int sock, void *buf, int len,
@@ -209,55 +297,25 @@ void pim_recv(int sock, void *buf, int len,
 int pim_register(int sock)
 {
 	struct pimky_ifctl	ifctl;
-	struct sockaddr_storage	addr;
-	struct sockaddr_in	*sin;
-	struct sockaddr_in6	*sin6;
 	int			type;
-	int 			ret;
 
 	type = socktype(sock);
 	if (type < 0)
 		return type;
 
-	ret = EX_OK;
-
 	memset(&ifctl, 0, sizeof(ifctl));
-	memset(&addr, 0, sizeof(addr));
-
-	ifctl.ifi	= 0;
-	ifctl.threshold	= 1;
 
 	switch (type) {
 	case AF_INET:
 		ifctl.flags	= VIFF_REGISTER;
-
-		sin		= (struct sockaddr_in *)&addr;
-		ret = inet_pton(AF_INET, "224.0.0.13", &sin->sin_addr);
-		if (ret <= 0) {
-			logger(LOG_ERR, errno, "unable to convert 224.0.0.13");
-			return -EX_SOFTWARE;
-		}
 		break;
 	case AF_INET6:
 		ifctl.flags	= MIFF_REGISTER;
-
-		sin6		= (struct sockaddr_in6 *)&addr;
-		ret = inet_pton(AF_INET6, "ff02::d", &sin6->sin6_addr);
-		if (ret <= 0) {
-			logger(LOG_ERR, errno, "unable to convert ff02::d");
-			return -EX_SOFTWARE;
-		}
 		break;
 	default:
 		logger(LOG_ERR, 0, "%s(): unknown socket type: %d", __func__, type);
 		return -EX_SOFTWARE;
 	}
 
-	ret = vif_add(sock, &ifctl);
-	if (!ret) {
-		addr.ss_family = type;
-		ret = mcast_join(sock, &addr);
-	}
-
-	return ret;
+	return vif_add(sock, &ifctl);
 }

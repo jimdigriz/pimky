@@ -1,6 +1,6 @@
 /*
  * This file is part of:
- * 	pimky - Slimline PIM Routing Daemon for IPv4 and IPv6
+ *	pimky - Slimline PIM Routing Daemon for IPv4 and IPv6
  * Copyright (C) 2010  Alexander Clouter <alex@digriz.org.uk>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -163,11 +163,13 @@ int iface_map_get(void)
 	for (ifm = iface_map.next; ifm != NULL; ifm = ifm->next) {
 		for (ifma = ifm->addr->next; ifma != NULL; ifma = ifma->next)
 			if (ifma->addr.ss_family == AF_INET) {
+				ifm->ip.v4 = 1;
 				cifv4++;
 				break;
 			}
 		for (ifma = ifm->addr->next; ifma != NULL; ifma = ifma->next)
 			if (ifma->addr.ss_family == AF_INET6) {
+				ifm->ip.v6 = 1;
 				cifv6++;
 				break;
 			}
@@ -182,7 +184,7 @@ exit:
 	return ret;
 }
 
-int mcast_join(int sock, struct sockaddr_storage *group)
+int mcast_join(int sock, int ifi, struct sockaddr_storage *group)
 {
 	struct group_req	greq;
 	int 			type, slevel;
@@ -199,9 +201,13 @@ int mcast_join(int sock, struct sockaddr_storage *group)
 	if (slevel < 0)
 		return slevel;
 
-	greq.gr_interface = 0;
+	greq.gr_interface = ifi;
 	memcpy(&greq.gr_group, group, sizeof(*group));
 	if (setsockopt(sock, slevel, MCAST_JOIN_GROUP, &greq, sizeof(greq)) < 0) {
+		/* we do not actually care if we are already joined */
+		if (errno == EADDRINUSE)
+			return -EX_TEMPFAIL;
+
 		logger(LOG_ERR, errno, "%s(): setsockopt(MCAST_JOIN_GROUP)", __func__);
 		return -EX_OSERR;
 	}

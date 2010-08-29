@@ -44,7 +44,17 @@ extern struct iface_map	iface_map;
 
 #define RFC3376_RFC3810_Query_Interval	125
 #define RFC4601_Hello_Period		 30
+#define RFC4601_Default_Hello_Holdtime	(3.5 * RFC4601_Hello_Period)
 #define RFC4601_Triggered_Hello_Delay	  5
+
+struct pimopt {
+	uint16_t	type;
+	uint16_t	len;
+
+	union {
+		uint16_t	holdtime;
+	} payload;
+};
 
 struct pimhdr {
 #if __BYTE_ORDER == __LITTLE_ENDIAN
@@ -70,7 +80,12 @@ enum {
 	PIM_ASSERT,
 	PIM_GRAFT,
 	PIM_GRAFT_ACK,
-	PIM_CAND_RP_ADVERT
+	PIM_CAND_RP_ADVERT,
+	PIM_STATE_REFRESH
+};
+
+enum {
+	PIM_OPT_HOLDTIME	= 1
 };
 
 /* mroute.h/mroute6.h combined */
@@ -99,6 +114,11 @@ struct iface_map {
 	unsigned int		index;
 	unsigned int		flags;
 	struct iface_map_addr	*addr;
+
+	struct {
+		unsigned int	v4:1;
+		unsigned int	v6:1;
+	} ip;
 };
 
 /* utils.c */
@@ -110,7 +130,7 @@ int family_to_level(int);
 /* net.c */
 void iface_map_init(void);
 int iface_map_get(void);
-int mcast_join(int, struct sockaddr_storage *);
+int mcast_join(int, int, struct sockaddr_storage *);
 int vif_add(int, struct pimky_ifctl *);
 
 /* pim.c */

@@ -1,6 +1,6 @@
 /*
  * This file is part of:
- * 	pimky - Slimline PIM Routing Daemon for IPv4 and IPv6
+ *	pimky - Slimline PIM Routing Daemon for IPv4 and IPv6
  * Copyright (C) 2010  Alexander Clouter <alex@digriz.org.uk>
  *
  * This program is free software: you can redistribute it and/or modify
