@@ -212,12 +212,12 @@ void pim_hello_send(void)
 	for (ifm = iface_map.next; ifm != NULL; ifm = ifm->next) {
 		if (ifm->ip.v4) {
 			addr.ss_family = AF_INET;
+
+			sin->sin_port		= htons(IPPROTO_PIM);
 			inet_pton(AF_INET, "224.0.0.13", &sin->sin_addr);
 
 			ret = mcast_join(mroute4, ifm->index, &addr);
 			assert(ret == EX_OK || ret == -EX_TEMPFAIL);
-
-			sin->sin_port = htons(IPPROTO_PIM);
 
 			memset(&mreq, 0, sizeof(mreq));
 			mreq.imr_ifindex = ifm->index;
@@ -231,17 +231,15 @@ void pim_hello_send(void)
 		}
 		if (ifm->ip.v6) {
 			addr.ss_family = AF_INET6;
+
+			sin6->sin6_port		= htons(IPPROTO_PIM);
+			sin6->sin6_scope_id	= ifm->index;
 			inet_pton(AF_INET6, "ff02::d", &sin6->sin6_addr);
 
 			ret = mcast_join(mroute6, ifm->index, &addr);
 			assert(ret == EX_OK || ret == -EX_TEMPFAIL);
 
-			sin6->sin6_port = htons(IPPROTO_PIM);
-
-			ret = setsockopt(pim6, IPPROTO_IPV6, IPV6_MULTICAST_IF,
-					&ifm->index, sizeof(ifm->index));
-			if (!ret)
-				ret = sendto(pim6, pim, 10, 0,
+			ret = sendto(pim6, pim, 10, 0,
 					(struct sockaddr *) &addr, sizeof(addr));
 			if (ret < 0)
 				logger(LOG_ERR, errno, "unable to send pim6 on %s", ifm->name);
