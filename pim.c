@@ -184,63 +184,84 @@ int pim_shutdown(int sock)
 void pim_hello_send(void)
 {
 	struct iface_map	*ifm;
-	struct sockaddr_storage	addr;
-	struct sockaddr_in	*sin;
-	struct sockaddr_in6	*sin6;
+	union
+	{
+		struct sockaddr_storage	ss;
+		struct sockaddr_in	s4;
+		struct sockaddr_in6	s6;
+	} s;
 	int			ret;
-	char			pimpkt[sizeof(struct pimhdr)
+	char			pimpkt[sizeof(struct ip6_pseudohdr)
+					+ sizeof(struct pimhdr)
 					+ sizeof(struct pimopt)];
+	struct ip6_pseudohdr	*ip6;
 	struct pimhdr		*pim;
 	struct pimopt		*pimopt;
 	struct ip_mreqn		mreq;
+
+	struct sockaddr_storage src;
 
 	fprintf(stderr, "sent pim hello\n");
 
 	memset(pimpkt, 0, sizeof(pimpkt));
 
-	pim	= (struct pimhdr *) &pimpkt;
-	pimopt	= (struct pimopt *) &pimpkt[sizeof(struct pimhdr)];
+	pim	= (struct pimhdr *) &pimpkt[sizeof(struct ip6_pseudohdr)];
+	pimopt	= (struct pimopt *) &pimpkt[sizeof(struct ip6_pseudohdr)
+						+ sizeof(struct pimhdr)];
 
 	pim->ver			= 2;
 	pim->type			= PIM_HELLO;
 	pimopt->type			= htons(PIM_OPT_HOLDTIME);
 	pimopt->len			= htons(2);
 	pimopt->payload.holdtime	= htons(RFC4601_Default_Hello_Holdtime);
-
-	sin	= (struct sockaddr_in  *)&addr;
-	sin6	= (struct sockaddr_in6 *)&addr;
+	
 	for (ifm = iface_map.next; ifm != NULL; ifm = ifm->next) {
 		if (ifm->ip.v4) {
-			addr.ss_family = AF_INET;
+			s.ss.ss_family		= AF_INET;
 
-			sin->sin_port		= htons(IPPROTO_PIM);
-			inet_pton(AF_INET, "224.0.0.13", &sin->sin_addr);
+			s.s4.sin_port		= htons(IPPROTO_PIM);
+			inet_pton(AF_INET, "224.0.0.13", &s.s4.sin_addr);
 
-			ret = mcast_join(mroute4, ifm->index, &addr);
+			ret = mcast_join(mroute4, ifm->index, &s.ss);
 			assert(ret == EX_OK || ret == -EX_TEMPFAIL);
+
+			pim->cksum		= cksum(pim, sizeof(struct pimhdr) 
+								+ sizeof(struct pimopt));
 
 			memset(&mreq, 0, sizeof(mreq));
 			mreq.imr_ifindex = ifm->index;
 			ret = setsockopt(pim4, IPPROTO_IP, IP_MULTICAST_IF,
 					&mreq, sizeof(mreq));
 			if (!ret)
-				ret = sendto(pim4, pim, 10, 0,
-					(struct sockaddr *) &addr, sizeof(addr));
+				ret = sendto(pim4, pim, sizeof(struct pimhdr) + sizeof(struct pimopt),
+						0, (struct sockaddr *) &s.ss, sizeof(s.ss));
 			if (ret < 0)
 				logger(LOG_ERR, errno, "unable to send pim4 on %s", ifm->name);
+
 		}
 		if (ifm->ip.v6) {
-			addr.ss_family = AF_INET6;
+			s.ss.ss_family		= AF_INET6;
 
-			sin6->sin6_port		= htons(IPPROTO_PIM);
-			sin6->sin6_scope_id	= ifm->index;
-			inet_pton(AF_INET6, "ff02::d", &sin6->sin6_addr);
+			s.s6.sin6_port		= htons(IPPROTO_PIM);
+			s.s6.sin6_scope_id	= ifm->index;
+			inet_pton(AF_INET6, "ff02::d", &s.s6.sin6_addr);
 
-			ret = mcast_join(mroute6, ifm->index, &addr);
+			ip6 = (struct ip6_pseudohdr *) &pimpkt;
+			route_getsrc(ifm->index, &s.ss, &src);
+			memcpy(&ip6->src, &((struct sockaddr_in6 *)&src)->sin6_addr, sizeof(struct in6_addr));
+			memcpy(&ip6->dst, &s.s6.sin6_addr, sizeof(struct in6_addr));
+			ip6->nexthdr = s.s6.sin6_port;
+			ip6->len = sizeof(struct pimhdr) + sizeof(struct pimopt);
+
+			pim->cksum		= cksum(ip6, sizeof(struct ip6_pseudohdr)
+								+ sizeof(struct pimhdr) 
+								+ sizeof(struct pimopt));
+
+			ret = mcast_join(mroute6, ifm->index, &s.ss);
 			assert(ret == EX_OK || ret == -EX_TEMPFAIL);
 
-			ret = sendto(pim6, pim, 10, 0,
-					(struct sockaddr *) &addr, sizeof(addr));
+			ret = sendto(pim6, pim, sizeof(struct pimhdr) + sizeof(struct pimopt),
+					0, (struct sockaddr *) &s.ss, sizeof(s.ss));
 			if (ret < 0)
 				logger(LOG_ERR, errno, "unable to send pim6 on %s", ifm->name);
 		}
@@ -267,14 +288,14 @@ void pim_recv(int sock, void *buf, int len,
 				&& (ntohs(ip->ip_off) & (~IP_OFFMASK)) != IP_MF);
 		/* assert(ip->ip_ttl == 1); */
 		assert(ip->ip_p == IPPROTO_PIM);
-		assert(cksum(ip, ip->ip_hl << 2) == 0xffff);
+//		assert(!cksum(ip, ip->ip_hl << 2));
 		assert(IN_MULTICAST(ntohl(ip->ip_dst.s_addr)));
 
 		pim	= (struct pimhdr *) ((char *)buf + (ip->ip_hl << 2));
 
 		assert(pim->ver == 2);
 		assert(pim->reserved == 0);	/* TODO ignore */
-		assert(cksum(pim, sizeof(struct pimhdr)) == 0xffff);
+//		assert(!cksum(pim, sizeof(struct pimhdr)));
 
 		switch (pim->type) {
 		case PIM_HELLO:

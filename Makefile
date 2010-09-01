@@ -3,7 +3,7 @@ LDFLAGS = -lrt
 
 KERNEL  = $(shell uname -s)
 
-OBJS    = utils.o net.o pim.o mld.o pimky.o
+OBJS    = utils.o net.o route.o pim.o mld.o pimky.o
 
 all: env pimky
 
