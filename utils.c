@@ -87,10 +87,12 @@ uint16_t cksum(void *buf, int len)
 	uint16_t	*b	= buf;
 	unsigned int	sum	= 0;
 
+	assert(len % 2 == 0);
+
 	for (; b < (uint16_t *) ((char *)buf + len); b++)
 		sum += *b;
 
-	sum = (sum & 0xffff) >> 16;
+	sum &= 0xffff;
 	sum = ~sum;
 
 	return sum;
