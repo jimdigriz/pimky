@@ -318,9 +318,13 @@ int main(int argc, char **argv)
 
 	if (mroute4 < 0 && mroute6 < 0) {
 		logger(LOG_ERR, 0, "multicast routing unavailable");
-		ret = EX_OSERR;
+		ret = -EX_OSERR;
 		goto exit;
 	}
+
+	ret = route_init();
+	if (ret)
+		goto mroute;
 
 	errno = 0;
 	grgid = getgrnam(gid);
@@ -339,7 +343,7 @@ int main(int argc, char **argv)
 
 	ret = signals(&sig_handler);
 	if (ret)
-		goto mroute;
+		goto route;
 
 	ret = prime_timers(&timerid_mld, &timerid_pim);
 	if (ret)
@@ -348,7 +352,7 @@ int main(int argc, char **argv)
 	buf = malloc(SOCK_BUFLEN);
 	if (buf == NULL) {
 		logger(LOG_ERR, 0, "malloc()");
-		ret = EX_OSERR;
+		ret = -EX_OSERR;
 		goto timer;
 	}
 
@@ -359,7 +363,7 @@ int main(int argc, char **argv)
 				continue;
 
 			logger(LOG_ERR, errno, "poll()");
-			ret = EX_OSERR;
+			ret = -EX_OSERR;
 			running = 0;
 			continue;
 		}
@@ -396,6 +400,8 @@ timer:
 	timer_delete(timerid_pim);
 signal:
 	signals(SIG_IGN);
+route:
+	route_shutdown();
 mroute:
 	if (mroute4 > 0) {
 		close(pim4);
@@ -410,5 +416,7 @@ exit:
 
 	closelog();
 
-	return ret;
+	assert(ret <= 0);
+
+	return -ret;
 }

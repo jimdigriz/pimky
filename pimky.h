@@ -54,7 +54,7 @@ struct pimopt {
 	union {
 		uint16_t	holdtime;
 	} payload;
-};
+} __attribute__((__packed__));
 
 struct pimhdr {
 #if __BYTE_ORDER == __LITTLE_ENDIAN
@@ -67,8 +67,8 @@ struct pimhdr {
 # error "Please fix <bits/endian.h>"
 #endif
 	uint8_t		reserved;
-	uint16_t	check;
-};
+	uint16_t	cksum;
+} __attribute__((__packed__));
 
 /* RFC4601 section 4.9 */
 enum {
@@ -87,6 +87,14 @@ enum {
 enum {
 	PIM_OPT_HOLDTIME	= 1
 };
+
+struct ip6_pseudohdr {
+	struct in6_addr	src;
+	struct in6_addr	dst;
+	uint32_t	len;
+	uint8_t		zero[3];
+	uint8_t		nexthdr;
+} __attribute__((__packed__));
 
 /* mroute.h/mroute6.h combined */
 struct pimky_ifctl {
@@ -132,6 +140,11 @@ void iface_map_init(void);
 int iface_map_get(void);
 int mcast_join(int, int, struct sockaddr_storage *);
 int vif_add(int, struct pimky_ifctl *);
+
+/* route.c */
+int route_init(void);
+void route_shutdown(void);
+int route_getsrc(int, struct sockaddr_storage *, struct sockaddr_storage *);
 
 /* pim.c */
 int pim_init(int);
