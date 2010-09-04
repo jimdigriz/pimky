@@ -38,6 +38,7 @@
 #define SOCK_BUFLEN	2048
 
 extern int		debug;
+extern unsigned int	running;
 extern int		mroute4, mroute6;
 extern int		pim4, pim6;
 extern struct iface_map	iface_map;

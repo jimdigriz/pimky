@@ -211,7 +211,8 @@ void pim_hello_send(void)
 	pim->type			= PIM_HELLO;
 	pimopt->type			= htons(PIM_OPT_HOLDTIME);
 	pimopt->len			= htons(2);
-	pimopt->payload.holdtime	= htons(RFC4601_Default_Hello_Holdtime);
+	if (running)
+		pimopt->payload.holdtime = htons(RFC4601_Default_Hello_Holdtime);
 
 	for (ifm = iface_map.next; ifm != NULL; ifm = ifm->next) {
 		if (ifm->ip.v4) {
