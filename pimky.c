@@ -379,7 +379,7 @@ int main(int argc, char **argv)
 				continue;
 
 			if (fds[i].revents & POLLIN) {
-				ret = recvfrom(fds[i].fd, buf, SOCK_BUFLEN, 0, (struct sockaddr *)&src_addr, &addrlen);
+				ret = _recvfrom(fds[i].fd, buf, SOCK_BUFLEN, 0, (struct sockaddr *)&src_addr, &addrlen);
 				if (ret < 0) {
 					logger(LOG_WARNING, errno, "recvfrom()");
 					continue;

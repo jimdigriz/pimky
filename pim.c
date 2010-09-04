@@ -184,12 +184,7 @@ int pim_shutdown(int sock)
 void pim_hello_send(void)
 {
 	struct iface_map	*ifm;
-	union
-	{
-		struct sockaddr_storage	ss;
-		struct sockaddr_in	s4;
-		struct sockaddr_in6	s6;
-	} s;
+	union sockstore		store;
 	int			ret;
 	char			pimpkt[sizeof(struct ip6_pseudohdr)
 					+ sizeof(struct pimhdr)
@@ -217,45 +212,44 @@ void pim_hello_send(void)
 	
 	for (ifm = iface_map.next; ifm != NULL; ifm = ifm->next) {
 		if (ifm->ip.v4) {
-			s.ss.ss_family		= AF_INET;
+			store.ss.ss_family	= AF_INET;
 
-			s.s4.sin_port		= htons(IPPROTO_PIM);
-			inet_pton(AF_INET, "224.0.0.13", &s.s4.sin_addr);
-
-			ret = mcast_join(mroute4, ifm->index, &s.ss);
-			assert(ret == EX_OK || ret == -EX_TEMPFAIL);
+			store.s4.sin_port	= htons(IPPROTO_PIM);
+			inet_pton(AF_INET, "224.0.0.13", &store.s4.sin_addr);
 
 			pim->cksum		= in_cksum(pim, sizeof(struct pimhdr) 
 								+ sizeof(struct pimopt));
+
+			ret = mcast_join(mroute4, ifm->index, &store.ss);
+			assert(ret == EX_OK || ret == -EX_TEMPFAIL);
 
 			memset(&mreq, 0, sizeof(mreq));
 			mreq.imr_ifindex = ifm->index;
 			ret = setsockopt(pim4, IPPROTO_IP, IP_MULTICAST_IF,
 					&mreq, sizeof(mreq));
 			if (!ret)
-				ret = sendto(pim4, pim, sizeof(struct pimhdr)
+				ret = _sendto(pim4, pim, sizeof(struct pimhdr)
 								+ sizeof(struct pimopt),
-						0, (struct sockaddr *) &s.ss, sizeof(s.ss));
+						0, (struct sockaddr *) &store.ss, sizeof(store.ss));
 			if (ret < 0)
 				logger(LOG_ERR, errno, "unable to send pim4 on %s", ifm->name);
 
 			pim->cksum = 0;
 		}
 		if (ifm->ip.v6) {
-			s.ss.ss_family		= AF_INET6;
+			store.ss.ss_family	= AF_INET6;
 
-			s.s6.sin6_port		= htons(IPPROTO_PIM);
-			s.s6.sin6_scope_id	= ifm->index;
-			inet_pton(AF_INET6, "ff02::d", &s.s6.sin6_addr);
-
-			ret = mcast_join(mroute6, ifm->index, &s.ss);
-			assert(ret == EX_OK || ret == -EX_TEMPFAIL);
+			store.s6.sin6_port	= htons(IPPROTO_PIM);
+			store.s6.sin6_scope_id	= ifm->index;
+			inet_pton(AF_INET6, "ff02::d", &store.s6.sin6_addr);
 
 			ip6 = (struct ip6_pseudohdr *) &pimpkt;
-			route_getsrc(ifm->index, &s.ss, &src);
+			ret = route_getsrc(ifm->index, &store.ss, &src);
+			assert(ret == EX_OK);
+
 			memcpy(&ip6->src, &((struct sockaddr_in6 *)&src)->sin6_addr,
 								sizeof(struct in6_addr));
-			memcpy(&ip6->dst, &s.s6.sin6_addr, sizeof(struct in6_addr));
+			memcpy(&ip6->dst, &store.s6.sin6_addr, sizeof(struct in6_addr));
 			ip6->len		= htonl(sizeof(struct pimhdr)
 								+ sizeof(struct pimopt));
 			ip6->nexthdr		= IPPROTO_PIM;
@@ -264,8 +258,11 @@ void pim_hello_send(void)
 								+ sizeof(struct pimhdr)
 								+ sizeof(struct pimopt));
 
-			ret = sendto(pim6, pim, sizeof(struct pimhdr) + sizeof(struct pimopt),
-					0, (struct sockaddr *) &s.ss, sizeof(s.ss));
+			ret = mcast_join(mroute6, ifm->index, &store.ss);
+			assert(ret == EX_OK || ret == -EX_TEMPFAIL);
+
+			ret = _sendto(pim6, pim, sizeof(struct pimhdr) + sizeof(struct pimopt),
+					0, (struct sockaddr *) &store.ss, sizeof(store.ss));
 			if (ret < 0)
 				logger(LOG_ERR, errno, "unable to send pim6 on %s", ifm->name);
 

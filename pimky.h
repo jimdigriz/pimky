@@ -129,8 +129,16 @@ struct iface_map {
 	} ip;
 };
 
+union sockstore {
+	struct sockaddr_storage	ss;
+	struct sockaddr_in	s4;
+	struct sockaddr_in6	s6;
+};
+
 /* utils.c */
 void logger(int severity, int syserr, const char *format, ...);
+ssize_t _recvfrom(int, void *, size_t, int, struct sockaddr *, socklen_t *);
+ssize_t _sendto(int, const void *, size_t, int, const struct sockaddr *, socklen_t);
 int socktype(int sock);
 uint16_t in_cksum(const void *, int);
 int family_to_level(int);
