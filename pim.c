@@ -39,7 +39,7 @@
 
 int pim_init(int sock)
 {
-	int			type, slevel, loop;
+	int			type, sl, loop;
 	int			v;
 	int			ret;
 	struct icmp6_filter	filter;
@@ -49,70 +49,72 @@ int pim_init(int sock)
 	if (type < 0)
 		return type;
 
-	slevel = family_to_level(type);
-	if (slevel < 0)
-		return slevel;
+	sl = family_to_level(type);
+	if (sl < 0)
+		return sl;
 
 	v = 1;
 	switch (type) {
 	case AF_INET:
-		ret = setsockopt(sock, slevel, MRT_INIT, &v, sizeof(v));
+		ret = setsockopt(sock, sl, MRT_INIT, &v, sizeof(v));
 		if (ret < 0) {
-			logger(LOG_ERR, errno, "%s(): setsockopt(MRT_INIT)", __func__);
+			logger(LOG_ERR, errno, "setsockopt(MRT_INIT)");
 			goto exit;
 		}
 
 #ifdef __linux__
-		ret = setsockopt(sock, slevel, MRT_PIM, &v, sizeof(v));
+		ret = setsockopt(sock, sl, MRT_PIM, &v, sizeof(v));
 		if (ret < 0) {
-			logger(LOG_ERR, errno, "%s(): setsockopt(MRT_PIM)", __func__);
+			logger(LOG_ERR, errno, "setsockopt(MRT_PIM)");
 			goto exit;
 		}
 #endif
 
 		break;
 	case AF_INET6:
-		ret = setsockopt(sock, slevel, MRT6_INIT, &v, sizeof(v));
+		ret = setsockopt(sock, sl, MRT6_INIT, &v, sizeof(v));
 		if (ret < 0) {
-			logger(LOG_ERR, errno, "%s(): setsockopt(MRT6_INIT)", __func__);
+			logger(LOG_ERR, errno, "setsockopt(MRT6_INIT)");
 			goto exit;
 		}
 
 		ICMP6_FILTER_SETBLOCKALL(&filter);
-		ret = setsockopt(sock, IPPROTO_ICMPV6, ICMP6_FILTER, &filter, sizeof(filter));
+		ret = setsockopt(sock, IPPROTO_ICMPV6, ICMP6_FILTER,
+				&filter, sizeof(filter));
 		if (ret < 0) {
-			logger(LOG_ERR, errno, "%s(): setsockopt(ICMP6_FILTER)", __func__);
+			logger(LOG_ERR, errno, "setsockopt(ICMP6_FILTER)");
 			goto exit;
 		}
 
-		ret = setsockopt(sock, slevel, MRT6_PIM, &v, sizeof(v));
+		ret = setsockopt(sock, sl, MRT6_PIM, &v, sizeof(v));
 		if (ret < 0) {
-			logger(LOG_ERR, errno, "%s(): setsockopt(MRT6_PIM)", __func__);
+			logger(LOG_ERR, errno, "setsockopt(MRT6_PIM)");
 			goto exit;
 		}
 
 		break;
 	default:
-		logger(LOG_ERR, 0, "%s(): unknown socket type: %d", __func__, type);
+		logger(LOG_ERR, 0, "%s(): unknown socket type: %d",
+				__func__, type);
 		return -EX_SOFTWARE;
 	}
 
 	pim = socket(type, SOCK_RAW, IPPROTO_PIM);
 	if (pim < 0) {
-		logger(LOG_ERR, errno, "%s(): socket(AF_INET, SOCK_RAW, IPPROTO_PIM)", __func__);
+		logger(LOG_ERR, errno, "socket(SOCK_RAW, IPPROTO_PIM)");
 		goto exit;
 	}
 
-	if (slevel == IPPROTO_IP)
+	if (sl == IPPROTO_IP)
 		loop = IP_MULTICAST_LOOP;
 	else
 		loop = IPV6_MULTICAST_LOOP;
 	v = 0;
-	ret = setsockopt(sock, slevel, loop, &v, sizeof(v));
+	ret = setsockopt(sock, sl, loop, &v, sizeof(v));
 	if (!ret)
-		ret = setsockopt(pim, slevel, loop, &v, sizeof(v));
+		ret = setsockopt(pim, sl, loop, &v, sizeof(v));
 	if (ret < 0) {
-		logger(LOG_ERR, errno, "%s(): setsockopt(IP[V6]_MULTICAST_LOOP)", __func__);
+		logger(LOG_ERR, errno, "setsockopt(MULTICAST_LOOP)");
 		goto pim;
 	}
 
@@ -130,7 +132,7 @@ exit:
 
 int pim_shutdown(int sock)
 {
-	int			type, slevel;
+	int			type, sl;
 	int			v = 0;
 	int			ret;
 
@@ -138,43 +140,44 @@ int pim_shutdown(int sock)
 	if (type < 0)
 		return type;
 
-	slevel = family_to_level(type);
-	if (slevel < 0)
-		return slevel;
+	sl = family_to_level(type);
+	if (sl < 0)
+		return sl;
 
 	switch (type) {
 	case AF_INET:
 #ifdef __linux__
-		ret = setsockopt(sock, slevel, MRT_PIM, &v, sizeof(v));
+		ret = setsockopt(sock, sl, MRT_PIM, &v, sizeof(v));
 		if (ret < 0) {
-			logger(LOG_ERR, errno, "%s(): setsockopt(MRT_PIM)", __func__);
+			logger(LOG_ERR, errno, "setsockopt(MRT_PIM)");
 			return -EX_OSERR;
 		}
 #endif
 
-		ret = setsockopt(sock, slevel, MRT_DONE, NULL, 0);
+		ret = setsockopt(sock, sl, MRT_DONE, NULL, 0);
 		if (ret < 0) {
-			logger(LOG_ERR, errno, "%s(): setsockopt(MRT_INIT)", __func__);
+			logger(LOG_ERR, errno, "setsockopt(MRT_INIT)");
 			return -EX_OSERR;
 		}
 
 		break;
 	case AF_INET6:
-		ret = setsockopt(sock, slevel, MRT6_PIM, &v, sizeof(v));
+		ret = setsockopt(sock, sl, MRT6_PIM, &v, sizeof(v));
 		if (ret < 0) {
-			logger(LOG_ERR, errno, "%s(): setsockopt(MRT6_PIM)", __func__);
+			logger(LOG_ERR, errno, "setsockopt(MRT6_PIM)");
 			return -EX_OSERR;
 		}
 
-		ret = setsockopt(sock, slevel, MRT6_DONE, NULL, 0);
+		ret = setsockopt(sock, sl, MRT6_DONE, NULL, 0);
 		if (ret < 0) {
-			logger(LOG_ERR, errno, "%s(): setsockopt(MRT6_INIT)", __func__);
+			logger(LOG_ERR, errno, "setsockopt(MRT6_INIT)");
 			return -EX_OSERR;
 		}
 
 		break;
 	default:
-		logger(LOG_ERR, 0, "%s(): unknown socket type: %d", __func__, type);
+		logger(LOG_ERR, 0, "%s(): unknown socket type: %d",
+				__func__, type);
 		return -EX_SOFTWARE;
 	}
 
@@ -209,7 +212,7 @@ void pim_hello_send(void)
 	pimopt->type			= htons(PIM_OPT_HOLDTIME);
 	pimopt->len			= htons(2);
 	pimopt->payload.holdtime	= htons(RFC4601_Default_Hello_Holdtime);
-	
+
 	for (ifm = iface_map.next; ifm != NULL; ifm = ifm->next) {
 		if (ifm->ip.v4) {
 			store.ss.ss_family	= AF_INET;
@@ -217,8 +220,8 @@ void pim_hello_send(void)
 			store.s4.sin_port	= htons(IPPROTO_PIM);
 			inet_pton(AF_INET, "224.0.0.13", &store.s4.sin_addr);
 
-			pim->cksum		= in_cksum(pim, sizeof(struct pimhdr) 
-								+ sizeof(struct pimopt));
+			pim->cksum	= in_cksum(pim, sizeof(struct pimhdr)
+						+ sizeof(struct pimopt));
 
 			ret = mcast_join(mroute4, ifm->index, &store.ss);
 			assert(ret == EX_OK || ret == -EX_TEMPFAIL);
@@ -229,10 +232,11 @@ void pim_hello_send(void)
 					&mreq, sizeof(mreq));
 			if (ret == 0)
 				ret = _sendto(pim4, pim, sizeof(struct pimhdr)
-								+ sizeof(struct pimopt),
-						0, (struct sockaddr *) &store.ss, sizeof(store.ss));
+							+ sizeof(struct pimopt),
+						0, &store.sa, sizeof(store));
 			if (ret == -1)
-				logger(LOG_ERR, errno, "unable to send pim4 on %s", ifm->name);
+				logger(LOG_ERR, errno, "unable to send pim4"
+							" on %s", ifm->name);
 
 			pim->cksum = 0;
 		}
@@ -248,23 +252,26 @@ void pim_hello_send(void)
 			assert(ret == EX_OK);
 
 			memcpy(&ip6->src, &((struct sockaddr_in6 *)&src)->sin6_addr,
-								sizeof(struct in6_addr));
-			memcpy(&ip6->dst, &store.s6.sin6_addr, sizeof(struct in6_addr));
-			ip6->len		= htonl(sizeof(struct pimhdr)
-								+ sizeof(struct pimopt));
-			ip6->nexthdr		= IPPROTO_PIM;
+					sizeof(struct in6_addr));
+			memcpy(&ip6->dst, &store.s6.sin6_addr,
+					sizeof(struct in6_addr));
+			ip6->len	= htonl(sizeof(struct pimhdr)
+						+ sizeof(struct pimopt));
+			ip6->nexthdr	= IPPROTO_PIM;
 
-			pim->cksum		= in_cksum(ip6, sizeof(struct ip6_pseudohdr)
-								+ sizeof(struct pimhdr)
-								+ sizeof(struct pimopt));
+			pim->cksum	= in_cksum(ip6, sizeof(struct ip6_pseudohdr)
+						+ sizeof(struct pimhdr)
+						+ sizeof(struct pimopt));
 
 			ret = mcast_join(mroute6, ifm->index, &store.ss);
 			assert(ret == EX_OK || ret == -EX_TEMPFAIL);
 
-			ret = _sendto(pim6, pim, sizeof(struct pimhdr) + sizeof(struct pimopt),
-					0, (struct sockaddr *) &store.ss, sizeof(store.ss));
+			ret = _sendto(pim6, pim, sizeof(struct pimhdr)
+							+ sizeof(struct pimopt),
+					0, &store.sa, sizeof(store));
 			if (ret == -1)
-				logger(LOG_ERR, errno, "unable to send pim6 on %s", ifm->name);
+				logger(LOG_ERR, errno, "unable to send pim6"
+							" on %s", ifm->name);
 
 			pim->cksum = 0;
 		}
@@ -312,7 +319,8 @@ void pim_recv(int sock, void *buf, int len,
 	case AF_INET6:
 		break;
 	default:
-		logger(LOG_WARNING, 0, "%s(): unknown socket type: %d", __func__, src_addr->ss_family);
+		logger(LOG_WARNING, 0, "%s(): unknown socket type: %d",
+				__func__, src_addr->ss_family);
 	}
 }
 
@@ -335,7 +343,8 @@ int pim_register(int sock)
 		ifctl.flags	= MIFF_REGISTER;
 		break;
 	default:
-		logger(LOG_ERR, 0, "%s(): unknown socket type: %d", __func__, type);
+		logger(LOG_ERR, 0, "%s(): unknown socket type: %d",
+				__func__, type);
 		return -EX_SOFTWARE;
 	}
 

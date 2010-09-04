@@ -68,6 +68,8 @@ free:
 	va_end(ap);
 }
 
+#define RETRY_ERROR(x) (x == EAGAIN || x == EWOULDBLOCK || x == EINTR)
+
 /* palmed wisdom from http://stackoverflow.com/questions/1674162/ */
 ssize_t _recvfrom(int sockfd, void *buf, size_t len, int flags,
 		struct sockaddr *src_addr, socklen_t *addrlen)
@@ -78,7 +80,7 @@ ssize_t _recvfrom(int sockfd, void *buf, size_t len, int flags,
 		count = recvfrom(sockfd, buf, len, flags,
 				src_addr, addrlen);
 		if (count == -1)
-			if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR)
+			if (RETRY_ERROR(errno))
 				continue;
 	} while (!count);
 
@@ -95,7 +97,7 @@ ssize_t _sendto(int sockfd, const void *buf, size_t len, int flags,
 		count = sendto(sockfd, buf, len, flags,
 				dest_addr, addrlen);
 		if (count == -1) {
-			if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR)
+			if (RETRY_ERROR(errno))
 				continue;
 			if (total == 0)
 				total = -1;
@@ -136,8 +138,9 @@ uint16_t in_cksum(const void *buf, int len)
 
 	sum  = (sum >> 16) + (sum & 0xffff);
 	sum += (sum >> 16);
+	sum  = ~sum & 0xffff;
 
-	return (~sum & 0xffff);
+	return sum;
 }
 
 int family_to_level(int type)
@@ -148,7 +151,8 @@ int family_to_level(int type)
 	case AF_INET6:
 		return IPPROTO_IPV6;
 	default:
-		logger(LOG_ERR, 0, "%s(): unknown socket type: %d", __func__, type);
+		logger(LOG_ERR, 0, "%s(): unknown socket type: %d",
+				__func__, type);
 		return -EX_SOFTWARE;
 	}
 }

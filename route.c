@@ -70,7 +70,8 @@ void route_shutdown(void)
 	close(rtnetlink_socket);
 }
 
-int route_getsrc(int ifi, struct sockaddr_storage *dst, struct sockaddr_storage *src)
+int route_getsrc(int ifi, struct sockaddr_storage *dst,
+		struct sockaddr_storage *src)
 {
 	struct {
 		struct nlmsghdr	n;
@@ -95,32 +96,39 @@ int route_getsrc(int ifi, struct sockaddr_storage *dst, struct sockaddr_storage 
 	req.r.rtm_family	= dst->ss_family;
 	req.r.rtm_table		= RT_TABLE_MAIN;
 
-	rtatp = (struct rtattr *)(((char *)&req) + NLMSG_ALIGN(req.n.nlmsg_len));
+	rtatp				= (struct rtattr *)(((char *)&req)
+						+ NLMSG_ALIGN(req.n.nlmsg_len));
 	rtatp->rta_type			= RTA_OIF;
 	rtatp->rta_len			= RTA_LENGTH(sizeof(uint32_t));
 	*((uint32_t *) RTA_DATA(rtatp))	= ifi;
 
-	req.n.nlmsg_len = NLMSG_ALIGN(req.n.nlmsg_len) + RTA_ALIGN(rtatp->rta_len);
+	req.n.nlmsg_len			= NLMSG_ALIGN(req.n.nlmsg_len)
+						+ RTA_ALIGN(rtatp->rta_len);
 
-	rtatp = (struct rtattr *)(((char *)&req) + NLMSG_ALIGN(req.n.nlmsg_len));
+	rtatp				= (struct rtattr *)(((char *)&req)
+						+ NLMSG_ALIGN(req.n.nlmsg_len));
 	rtatp->rta_type			= RTA_DST;
 
 	store = (union sockstore *) dst;
 	switch (dst->ss_family) {
 	case AF_INET:
 		rtatp->rta_len = RTA_LENGTH(sizeof(struct in_addr));
-		memcpy(RTA_DATA(rtatp), &store->s4.sin_addr, sizeof(struct in_addr));
+		memcpy(RTA_DATA(rtatp), &store->s4.sin_addr,
+				sizeof(struct in_addr));
 		break;
 	case AF_INET6:
 		rtatp->rta_len = RTA_LENGTH(sizeof(struct in6_addr));
-		memcpy(RTA_DATA(rtatp), &store->s6.sin6_addr, sizeof(struct in6_addr));
+		memcpy(RTA_DATA(rtatp), &store->s6.sin6_addr,
+				sizeof(struct in6_addr));
 		break;
 	default:
-		logger(LOG_ERR, 0, "%s(): unknown address type: %d", __func__, dst->ss_family);
+		logger(LOG_ERR, 0, "%s(): unknown address type: %d",
+				__func__, dst->ss_family);
 		return -EX_SOFTWARE;
 	}
 
-	req.n.nlmsg_len = NLMSG_ALIGN(req.n.nlmsg_len) + RTA_ALIGN(rtatp->rta_len);
+	req.n.nlmsg_len			= NLMSG_ALIGN(req.n.nlmsg_len)
+						+ RTA_ALIGN(rtatp->rta_len);
 
 	ret = _sendto(rtnetlink_socket, &req, req.n.nlmsg_len, 0, NULL, 0);
 	if (ret == -1) {
@@ -134,11 +142,11 @@ int route_getsrc(int ifi, struct sockaddr_storage *dst, struct sockaddr_storage 
 		goto exit;
 	}
 
-	nlmp 		= (struct nlmsghdr *) buf;
+	nlmp		= (struct nlmsghdr *) buf;
 
 	rtmp		= (struct rtmsg *) NLMSG_DATA(nlmp);
 	rtatp		= (struct rtattr *) RTM_RTA(rtmp);
-	rtattrlen	= RTM_PAYLOAD (nlmp);
+	rtattrlen	= RTM_PAYLOAD(nlmp);
 
 	ret = -EX_SOFTWARE;
 	for (; RTA_OK(rtatp, rtattrlen); rtatp = RTA_NEXT(rtatp, rtattrlen)) {
@@ -158,7 +166,8 @@ int route_getsrc(int ifi, struct sockaddr_storage *dst, struct sockaddr_storage 
 						sizeof(struct in6_addr));
 				break;
 			default:
-				logger(LOG_ERR, 0, "kernel returned unknown address family: %d", rtmp->rtm_family);
+				logger(LOG_ERR, 0, "%s(): unknown address type: %d",
+					__func__, rtmp->rtm_family);
 				return ret;
 			}
 

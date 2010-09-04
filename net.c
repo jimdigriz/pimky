@@ -69,7 +69,7 @@ int iface_map_get(void)
 
 	iface_map_init();
 
-	if(getifaddrs(&ifaddr)) {
+	if (getifaddrs(&ifaddr)) {
 		logger(LOG_ERR, errno, "getifaddrs()");
 		ret = -EX_OSERR;
 		goto exit;
@@ -126,7 +126,8 @@ int iface_map_get(void)
 			/* dummy entry */
 			ifm->addr = malloc(sizeof(struct iface_map_addr));
 			if (ifm->addr == NULL) {
-				logger(LOG_ERR, errno, "malloc(iface_map_addr - dummy)");
+				logger(LOG_ERR, errno,
+						"dummy malloc(iface_map_addr)");
 				ret = -EX_OSERR;
 				iface_map_init();
 				goto ifaddrs;
@@ -136,7 +137,7 @@ int iface_map_get(void)
 
 		ifma = malloc(sizeof(struct iface_map_addr));
 		if (ifma == NULL) {
-			logger(LOG_ERR, errno, "alloc(iface_map_addr)");
+			logger(LOG_ERR, errno, "malloc(iface_map_addr)");
 			ret = -EX_OSERR;
 			iface_map_init();
 			goto ifaddrs;
@@ -146,17 +147,21 @@ int iface_map_get(void)
 		ifma->next	= ifm->addr->next;
 		ifm->addr->next	= ifma;
 
-		ifma->flags 	= ifa->ifa_flags;
+		ifma->flags	= ifa->ifa_flags;
 		/* I assume the following always holds true */
 		assert(ifm->flags == ifma->flags);
 
 		memcpy(&ifma->addr, ifa->ifa_addr, sizeof(ifma->addr));
 		if (ifa->ifa_netmask)
-			memcpy(&ifma->netmask, ifa->ifa_netmask, sizeof(ifma->netmask));
+			memcpy(&ifma->netmask, ifa->ifa_netmask,
+					sizeof(ifma->netmask));
 		if (ifa->ifa_flags & IFF_POINTOPOINT)
-			memcpy(&ifma->ifu.dstaddr, ifa->ifa_dstaddr, sizeof(ifma->ifu.dstaddr));
-		else if (ifa->ifa_flags & IFF_BROADCAST && ifa->ifa_broadaddr)
-			memcpy(&ifma->ifu.broadaddr, ifa->ifa_broadaddr, sizeof(ifma->ifu.broadaddr));
+			memcpy(&ifma->ifu.dstaddr, ifa->ifa_dstaddr,
+					sizeof(ifma->ifu.dstaddr));
+		else if (ifa->ifa_flags & IFF_BROADCAST
+				&& ifa->ifa_broadaddr)
+			memcpy(&ifma->ifu.broadaddr, ifa->ifa_broadaddr,
+					sizeof(ifma->ifu.broadaddr));
 	}
 
 	/* check we are not exceeding MAXVIFS or MAXMIFS */
@@ -187,7 +192,7 @@ exit:
 int mcast_join(int sock, int ifi, struct sockaddr_storage *group)
 {
 	struct group_req	greq;
-	int 			type, slevel;
+	int			type, sl;
 
 	type = socktype(sock);
 	if (type < 0)
@@ -197,18 +202,18 @@ int mcast_join(int sock, int ifi, struct sockaddr_storage *group)
 
 	memset(&greq, 0, sizeof(greq));
 
-	slevel = family_to_level(type);
-	if (slevel < 0)
-		return slevel;
+	sl = family_to_level(type);
+	if (sl < 0)
+		return sl;
 
 	greq.gr_interface = ifi;
 	memcpy(&greq.gr_group, group, sizeof(*group));
-	if (setsockopt(sock, slevel, MCAST_JOIN_GROUP, &greq, sizeof(greq)) < 0) {
+	if (setsockopt(sock, sl, MCAST_JOIN_GROUP, &greq, sizeof(greq)) < 0) {
 		/* we do not actually care if we are already joined */
 		if (errno == EADDRINUSE)
 			return -EX_TEMPFAIL;
 
-		logger(LOG_ERR, errno, "%s(): setsockopt(MCAST_JOIN_GROUP)", __func__);
+		logger(LOG_ERR, errno, "setsockopt(MCAST_JOIN_GROUP)");
 		return -EX_OSERR;
 	}
 
@@ -217,7 +222,7 @@ int mcast_join(int sock, int ifi, struct sockaddr_storage *group)
 
 int vif_add(int sock, struct pimky_ifctl *ifctl)
 {
-	int	 		type;
+	int			type;
 	union {
 		struct vifctl	v4;
 		struct mif6ctl	v6;
@@ -235,8 +240,9 @@ int vif_add(int sock, struct pimky_ifctl *ifctl)
 		mif.v4.vifc_flags	= ifctl->flags;
 		mif.v4.vifc_threshold	= ifctl->threshold;
 
-		if (setsockopt(sock, IPPROTO_IP, MRT_ADD_VIF, &mif, sizeof(mif)) < 0) {
-			logger(LOG_ERR, errno, "%s(): setsockopt(MRT_ADD_VIF)", __func__);
+		if (setsockopt(sock, IPPROTO_IP, MRT_ADD_VIF,
+					&mif, sizeof(mif)) < 0) {
+			logger(LOG_ERR, errno, "setsockopt(MRT_ADD_VIF)");
 			return -EX_OSERR;
 		}
 		break;
@@ -245,13 +251,15 @@ int vif_add(int sock, struct pimky_ifctl *ifctl)
 		mif.v6.mif6c_flags	= ifctl->flags;
 		mif.v6.vifc_threshold	= ifctl->threshold;
 
-		if (setsockopt(sock, IPPROTO_IPV6, MRT6_ADD_MIF, &mif, sizeof(mif)) < 0) {
-			logger(LOG_ERR, errno, "%s(): setsockopt(MRT6_ADD_MIF)", __func__);
+		if (setsockopt(sock, IPPROTO_IPV6, MRT6_ADD_MIF,
+					&mif, sizeof(mif)) < 0) {
+			logger(LOG_ERR, errno, "setsockopt(MRT6_ADD_MIF)");
 			return -EX_OSERR;
 		}
 		break;
 	default:
-		logger(LOG_ERR, 0, "%s(): unknown socket type: %d", __func__, type);
+		logger(LOG_ERR, 0, "%s(): unknown socket type: %d",
+				__func__, type);
 		return -EX_SOFTWARE;
 	}
 

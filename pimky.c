@@ -77,11 +77,13 @@ int parse_args(int argc, char **argv)
 		break;
 	case '?':
 		if (optopt == 'u' || optopt == 'g')
-			fprintf(stderr, "option -%c requires an argument.\n", optopt);
+			fprintf(stderr, "option -%c requires an argument.\n",
+					optopt);
 		else if (isprint(optopt))
 			fprintf(stderr, "unknown option `-%c'.\n", optopt);
 		else
-			fprintf(stderr, "unknown option character `\\x%x'.\n", optopt);
+			fprintf(stderr, "unknown option character `\\x%x'.\n",
+					optopt);
 		return -EX_USAGE;
 	case 'V':
 		printf("%s %s\n\n", basename(argv[0]), VERSION);
@@ -92,7 +94,8 @@ int parse_args(int argc, char **argv)
 		return -EX_SOFTWARE;
 	case 'h':
 	default:
-		printf("Usage: %s [-h] [-V] [options] [(-q|-v)]\n", basename(argv[0]));
+		printf("Usage: %s [-h] [-V] [options] [(-q|-v)]\n",
+				basename(argv[0]));
 		printf("Slimline PIM Routing Daemon for IPv4 and IPv6\n"
 			"\n"
 			"  -n		do not fork (additionally logs to stderr)\n"
@@ -126,7 +129,7 @@ int signals(void (*handler)(int))
 {
 	int ret;
 	struct sigaction action;
-       
+
 	action.sa_handler	= handler;
 	action.sa_flags		= 0;
 
@@ -208,10 +211,12 @@ int prime_timers(timer_t *mld, timer_t *pim)
 	/* rand() might return not enough bits to make use of */
 	srand(time(NULL));
 	do {
-		rand_tot <<= (__builtin_clz(0) - __builtin_clz((unsigned int) RAND_MAX));
+		rand_tot <<= (__builtin_clz(0)
+				- __builtin_clz((unsigned int) RAND_MAX));
 		rand_tot +=  rand();
 
-		rand_max <<= (__builtin_clz(0) - __builtin_clz((unsigned int) RAND_MAX));
+		rand_max <<= (__builtin_clz(0)
+				- __builtin_clz((unsigned int) RAND_MAX));
 	} while (rand_max < (RFC4601_Triggered_Hello_Delay * (int) 1e6));
 	timer.it_value.tv_nsec		= rand_tot % (RFC4601_Triggered_Hello_Delay * (int) 1e6);
 
@@ -379,16 +384,20 @@ int main(int argc, char **argv)
 				continue;
 
 			if (fds[i].revents & POLLIN) {
-				ret = _recvfrom(fds[i].fd, buf, SOCK_BUFLEN, 0, (struct sockaddr *)&src_addr, &addrlen);
+				ret = _recvfrom(fds[i].fd, buf, SOCK_BUFLEN, 0,
+						(struct sockaddr *)&src_addr,
+						&addrlen);
 				if (ret == -1) {
 					logger(LOG_WARNING, errno, "recvfrom()");
 					continue;
 				}
 
 				if (fds[i].fd == pim4 || fds[i].fd == pim6)
-					pim_recv(fds[i].fd, buf, ret, &src_addr, addrlen);
+					pim_recv(fds[i].fd, buf, ret,
+							&src_addr, addrlen);
 				else
-					mld_recv(fds[i].fd, buf, ret, &src_addr, addrlen);
+					mld_recv(fds[i].fd, buf, ret,
+							&src_addr, addrlen);
 			}
 		}
 	}

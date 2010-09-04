@@ -67,6 +67,7 @@ void mld_recv(int sock, void *buf, int len,
 	case AF_INET6:
 		break;
 	default:
-		logger(LOG_WARNING, 0, "%s(): unknown socket type: %d", __func__, src_addr->ss_family);
+		logger(LOG_WARNING, 0, "%s(): unknown socket type: %d",
+				__func__, src_addr->ss_family);
 	}
 }
