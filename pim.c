@@ -225,7 +225,7 @@ void pim_hello_send(void)
 			ret = mcast_join(mroute4, ifm->index, &s.ss);
 			assert(ret == EX_OK || ret == -EX_TEMPFAIL);
 
-			pim->cksum		= cksum(pim, sizeof(struct pimhdr) 
+			pim->cksum		= in_cksum(pim, sizeof(struct pimhdr) 
 								+ sizeof(struct pimopt));
 
 			memset(&mreq, 0, sizeof(mreq));
@@ -233,11 +233,13 @@ void pim_hello_send(void)
 			ret = setsockopt(pim4, IPPROTO_IP, IP_MULTICAST_IF,
 					&mreq, sizeof(mreq));
 			if (!ret)
-				ret = sendto(pim4, pim, sizeof(struct pimhdr) + sizeof(struct pimopt),
+				ret = sendto(pim4, pim, sizeof(struct pimhdr)
+								+ sizeof(struct pimopt),
 						0, (struct sockaddr *) &s.ss, sizeof(s.ss));
 			if (ret < 0)
 				logger(LOG_ERR, errno, "unable to send pim4 on %s", ifm->name);
 
+			pim->cksum = 0;
 		}
 		if (ifm->ip.v6) {
 			s.ss.ss_family		= AF_INET6;
@@ -246,24 +248,28 @@ void pim_hello_send(void)
 			s.s6.sin6_scope_id	= ifm->index;
 			inet_pton(AF_INET6, "ff02::d", &s.s6.sin6_addr);
 
-			ip6 = (struct ip6_pseudohdr *) &pimpkt;
-			route_getsrc(ifm->index, &s.ss, &src);
-			memcpy(&ip6->src, &((struct sockaddr_in6 *)&src)->sin6_addr, sizeof(struct in6_addr));
-			memcpy(&ip6->dst, &s.s6.sin6_addr, sizeof(struct in6_addr));
-			ip6->nexthdr = s.s6.sin6_port;
-			ip6->len = sizeof(struct pimhdr) + sizeof(struct pimopt);
-
-			pim->cksum		= cksum(ip6, sizeof(struct ip6_pseudohdr)
-								+ sizeof(struct pimhdr) 
-								+ sizeof(struct pimopt));
-
 			ret = mcast_join(mroute6, ifm->index, &s.ss);
 			assert(ret == EX_OK || ret == -EX_TEMPFAIL);
+
+			ip6 = (struct ip6_pseudohdr *) &pimpkt;
+			route_getsrc(ifm->index, &s.ss, &src);
+			memcpy(&ip6->src, &((struct sockaddr_in6 *)&src)->sin6_addr,
+								sizeof(struct in6_addr));
+			memcpy(&ip6->dst, &s.s6.sin6_addr, sizeof(struct in6_addr));
+			ip6->len		= htonl(sizeof(struct pimhdr)
+								+ sizeof(struct pimopt));
+			ip6->nexthdr		= IPPROTO_PIM;
+
+			pim->cksum		= in_cksum(ip6, sizeof(struct ip6_pseudohdr)
+								+ sizeof(struct pimhdr)
+								+ sizeof(struct pimopt));
 
 			ret = sendto(pim6, pim, sizeof(struct pimhdr) + sizeof(struct pimopt),
 					0, (struct sockaddr *) &s.ss, sizeof(s.ss));
 			if (ret < 0)
 				logger(LOG_ERR, errno, "unable to send pim6 on %s", ifm->name);
+
+			pim->cksum = 0;
 		}
 	}
 }
@@ -288,14 +294,14 @@ void pim_recv(int sock, void *buf, int len,
 				&& (ntohs(ip->ip_off) & (~IP_OFFMASK)) != IP_MF);
 		/* assert(ip->ip_ttl == 1); */
 		assert(ip->ip_p == IPPROTO_PIM);
-//		assert(!cksum(ip, ip->ip_hl << 2));
+		assert(!in_cksum(ip, ip->ip_hl << 2));
 		assert(IN_MULTICAST(ntohl(ip->ip_dst.s_addr)));
 
 		pim	= (struct pimhdr *) ((char *)buf + (ip->ip_hl << 2));
 
 		assert(pim->ver == 2);
 		assert(pim->reserved == 0);	/* TODO ignore */
-//		assert(!cksum(pim, sizeof(struct pimhdr)));
+		assert(!in_cksum(pim, sizeof(struct pimhdr)));
 
 		switch (pim->type) {
 		case PIM_HELLO:

@@ -81,21 +81,21 @@ int socktype(int sock)
 	return addr.sa_family;
 }
 
-/* when checking, pass header and check for return of 0xffff (~0)*/
-uint16_t cksum(void *buf, int len)
+/* when checking, pass header and check for return value of zero */
+uint16_t in_cksum(const void *buf, int len)
 {
-	uint16_t	*b	= buf;
-	unsigned int	sum	= 0;
+	const uint16_t	*b	= buf;
+	uint32_t	sum	= 0;
 
 	assert(len % 2 == 0);
 
 	for (; b < (uint16_t *) ((char *)buf + len); b++)
 		sum += *b;
 
-	sum &= 0xffff;
-	sum = ~sum;
+	sum  = (sum >> 16) + (sum & 0xffff);
+	sum += (sum >> 16);
 
-	return sum;
+	return (~sum & 0xffff);
 }
 
 int family_to_level(int type)

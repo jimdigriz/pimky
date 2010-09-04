@@ -51,12 +51,12 @@ void mld_recv(int sock, void *buf, int len,
 				&& (ntohs(ip->ip_off) & (~IP_OFFMASK)) != IP_MF);
 		assert(ip->ip_ttl == 1);
 		assert(ip->ip_p == IPPROTO_IGMP);
-//		assert(!cksum(ip, ip->ip_hl << 2));
+		assert(!in_cksum(ip, ip->ip_hl << 2));
 		assert(IN_MULTICAST(ntohl(ip->ip_dst.s_addr)));
 
 		igmp	= (struct igmp *) ((char *)buf + (ip->ip_hl << 2));
 
-//		assert(!cksum(igmp, sizeof(struct igmp)));
+		assert(!in_cksum(igmp, sizeof(struct igmp)));
 
 		switch (igmp->igmp_type) {
 		default:

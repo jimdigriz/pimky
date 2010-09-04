@@ -132,7 +132,7 @@ struct iface_map {
 /* utils.c */
 void logger(int severity, int syserr, const char *format, ...);
 int socktype(int sock);
-uint16_t cksum(void *, int);
+uint16_t in_cksum(const void *, int);
 int family_to_level(int);
 
 /* net.c */
