@@ -123,13 +123,13 @@ int route_getsrc(int ifi, struct sockaddr_storage *dst, struct sockaddr_storage 
 	req.n.nlmsg_len = NLMSG_ALIGN(req.n.nlmsg_len) + RTA_ALIGN(rtatp->rta_len);
 
 	ret = _sendto(rtnetlink_socket, &req, req.n.nlmsg_len, 0, NULL, 0);
-	if (ret < 0) {
+	if (ret == -1) {
 		logger(LOG_ERR, errno, "unable to submit make routing query");
 		goto exit;
 	}
 
 	ret = _recvfrom(rtnetlink_socket, buf, sizeof(buf), 0, NULL, 0);
-	if (ret < 0) {
+	if (ret == -1) {
 		logger(LOG_ERR, errno, "unable to receive routing response");
 		goto exit;
 	}

@@ -358,7 +358,7 @@ int main(int argc, char **argv)
 
 	while (running) {
 		ret = poll(fds, nfds, -1);
-		if (ret < 0) {
+		if (ret == -1) {
 			if (errno == EINTR)
 				continue;
 
@@ -380,7 +380,7 @@ int main(int argc, char **argv)
 
 			if (fds[i].revents & POLLIN) {
 				ret = _recvfrom(fds[i].fd, buf, SOCK_BUFLEN, 0, (struct sockaddr *)&src_addr, &addrlen);
-				if (ret < 0) {
+				if (ret == -1) {
 					logger(LOG_WARNING, errno, "recvfrom()");
 					continue;
 				}

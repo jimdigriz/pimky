@@ -227,11 +227,11 @@ void pim_hello_send(void)
 			mreq.imr_ifindex = ifm->index;
 			ret = setsockopt(pim4, IPPROTO_IP, IP_MULTICAST_IF,
 					&mreq, sizeof(mreq));
-			if (!ret)
+			if (ret == 0)
 				ret = _sendto(pim4, pim, sizeof(struct pimhdr)
 								+ sizeof(struct pimopt),
 						0, (struct sockaddr *) &store.ss, sizeof(store.ss));
-			if (ret < 0)
+			if (ret == -1)
 				logger(LOG_ERR, errno, "unable to send pim4 on %s", ifm->name);
 
 			pim->cksum = 0;
@@ -263,7 +263,7 @@ void pim_hello_send(void)
 
 			ret = _sendto(pim6, pim, sizeof(struct pimhdr) + sizeof(struct pimopt),
 					0, (struct sockaddr *) &store.ss, sizeof(store.ss));
-			if (ret < 0)
+			if (ret == -1)
 				logger(LOG_ERR, errno, "unable to send pim6 on %s", ifm->name);
 
 			pim->cksum = 0;
