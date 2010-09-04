@@ -296,16 +296,17 @@ void pim_recv(int sock, void *buf, int len,
 		/* TODO do we handle fragments? */
 		assert((ntohs(ip->ip_off) & IP_OFFMASK) == 0
 				&& (ntohs(ip->ip_off) & (~IP_OFFMASK)) != IP_MF);
-		/* assert(ip->ip_ttl == 1); */
+		if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr)))
+			assert(ip->ip_ttl == 1);
 		assert(ip->ip_p == IPPROTO_PIM);
 		assert(!in_cksum(ip, ip->ip_hl << 2));
-		assert(IN_MULTICAST(ntohl(ip->ip_dst.s_addr)));
 
 		pim	= (struct pimhdr *) ((char *)buf + (ip->ip_hl << 2));
 
 		assert(pim->ver == 2);
 		assert(pim->reserved == 0);	/* TODO ignore */
-		assert(!in_cksum(pim, sizeof(struct pimhdr)));
+		if (pim->type != PIM_REGISTER)
+			assert(!in_cksum(pim, len - (ip->ip_hl << 2)));
 
 		switch (pim->type) {
 		case PIM_HELLO:
