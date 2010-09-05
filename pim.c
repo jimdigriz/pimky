@@ -187,8 +187,9 @@ int pim_shutdown(int sock)
 
 int pim_hello_opt_add(char **buf, size_t len, unsigned int opt, void *data)
 {
-	struct pimopt	option;
-	unsigned int	olen = 2 * sizeof(uint16_t);
+	struct pimopt		option;
+	unsigned int		olen = 2 * sizeof(uint16_t);
+	struct iface_info	*ifinfo;
 
 	option.type = htons(opt);
 
@@ -204,7 +205,8 @@ int pim_hello_opt_add(char **buf, size_t len, unsigned int opt, void *data)
 		olen		+= sizeof(option.value.dr_priority);
 		option.len	= htons(sizeof(option.value.dr_priority));
 
-		option.value.dr_priority = htonl(1);
+		ifinfo = data;
+		option.value.dr_priority = htonl(ifinfo->dr_priority);
 		break;
 	default:
 		logger(LOG_ERR, 0, "unknown PIM hello option: %d", opt);
@@ -255,7 +257,7 @@ void pim_hello_send(void)
 		len = pim_hello_opt_add(&pimpkt, len, PIM_OPT_HOLDTIME, NULL);
 		if (len < 0)
 			return;
-		len = pim_hello_opt_add(&pimpkt, len, PIM_OPT_DR_PRIORITY, NULL);
+		len = pim_hello_opt_add(&pimpkt, len, PIM_OPT_DR_PRIORITY, ifm->info);
 		if (len < 0)
 			return;
 

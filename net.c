@@ -35,6 +35,58 @@
 #include <netinet6/ip6_mroute.h>
 #endif
 
+int iface_info_glue(void)
+{
+	struct iface_map	*ifm;
+	struct iface_info	*ifinfo, *pifinfo;
+
+	for (ifm = iface_map.next; ifm != NULL; ifm = ifm->next) {
+		for (ifinfo = iface_info.next; ifinfo != NULL; ifinfo = ifinfo->next)
+			if (ifinfo->index == ifm->index)
+				break;
+
+		if (ifinfo == NULL) {
+			ifinfo = malloc(sizeof(struct iface_info));
+			if (ifinfo == NULL) {
+				logger(LOG_ERR, errno, "unable to malloc(iface_info)");
+				return -EX_SOFTWARE;
+			}
+
+			ifinfo->index		= ifm->index;
+			strncpy(ifinfo->name, ifm->name, IFNAMSIZ);
+
+			ifinfo->dr_priority	= RFC4601_Default_DR_Priority;
+
+			ifinfo->map		= ifm;
+			ifm->info		= ifinfo;
+
+			ifinfo->next		= iface_info.next;
+			iface_info.next		= ifinfo;
+		}
+
+		assert(!strncmp(ifm->name, ifinfo->name, IFNAMSIZ));
+		assert(ifinfo->map == ifm);
+
+		ifm->info = ifinfo;
+	}
+
+	pifinfo = iface_info.next;
+	for (ifinfo = iface_info.next; ifinfo != NULL; ifinfo = ifinfo->next) {
+		for (ifm = iface_map.next; ifm != NULL; ifm = ifm->next)
+			if (ifm->index == ifinfo->index)
+				break;
+
+		if (ifm == NULL) {
+			pifinfo->next = ifinfo->next;
+			free(ifinfo);
+		}
+
+		pifinfo = ifinfo;
+	}
+
+	return EX_OK;
+}
+
 void iface_map_init(void)
 {
 	struct iface_map *ifm, *nifm;

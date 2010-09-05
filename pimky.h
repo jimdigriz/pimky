@@ -30,23 +30,25 @@
 #include <netinet/in.h>
 #include <net/if.h>
 
-#define	VERSION		"2010081100"
+#define	VERSION				"2010081100"
 
-#define	UID		"nobody"
-#define	GID		"nogroup"
+#define	UID				"nobody"
+#define	GID				"nogroup"
 
-#define SOCK_BUFLEN	2048
+#define SOCK_BUFLEN			2048
 
-extern int		debug;
-extern unsigned int	running;
-extern int		mroute4, mroute6;
-extern int		pim4, pim6;
-extern struct iface_map	iface_map;
+extern int				debug;
+extern unsigned int			running;
+extern int				mroute4, mroute6;
+extern int				pim4, pim6;
+extern struct iface_map			iface_map;
+extern struct iface_info		iface_info;
 
 #define RFC3376_RFC3810_Query_Interval	125
 #define RFC4601_Hello_Period		 30
 #define RFC4601_Default_Hello_Holdtime	 (3.5 * RFC4601_Hello_Period)
 #define RFC4601_Triggered_Hello_Delay	  5
+#define RFC4601_Default_DR_Priority	  1
 
 struct pimopt {
 	uint16_t	type;
@@ -133,6 +135,19 @@ struct iface_map {
 		unsigned int	v4:1;
 		unsigned int	v6:1;
 	} ip;
+
+	struct iface_info	*info;
+};
+
+struct iface_info {
+	struct iface_info	*next;
+
+	char			name[IFNAMSIZ];
+	unsigned int		index;
+
+	uint32_t		dr_priority;
+
+	struct iface_map	*map;
 };
 
 union sockstore {
@@ -154,6 +169,7 @@ uint16_t in_cksum(const void *, int);
 int family_to_level(int);
 
 /* net.c */
+int iface_info_glue(void);
 void iface_map_init(void);
 int iface_map_get(void);
 int mcast_join(int, int, struct sockaddr_storage *);

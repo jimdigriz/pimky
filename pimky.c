@@ -49,6 +49,7 @@ unsigned int		running	= 1;
 int			mroute4, mroute6;
 int			pim4, pim6;
 struct iface_map	iface_map;
+struct iface_info	iface_info;
 
 /* http://www.gnu.org/s/libc/manual/html_node/Getopt.html */
 int parse_args(int argc, char **argv)
@@ -167,6 +168,10 @@ void sig_handler(int sig)
 	}
 	if (sig == SIGUSR2) {
 		ret = iface_map_get();
+		if (ret < 0)
+			goto exit;
+
+		ret = iface_info_glue();
 		if (ret < 0)
 			goto exit;
 
