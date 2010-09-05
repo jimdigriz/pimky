@@ -40,7 +40,6 @@
 #include <grp.h>
 #include <pwd.h>
 
-int			debug	= LOG_NOTICE;
 unsigned int		nofork;	/* zero */
 char			*uid	= UID;
 char			*gid	= GID;
@@ -49,7 +48,7 @@ unsigned int		running	= 1;
 
 int			mroute4, mroute6;
 int			pim4, pim6;
-struct iface_map	iface_map = {0};
+struct iface_map	iface_map;
 
 /* http://www.gnu.org/s/libc/manual/html_node/Getopt.html */
 int parse_args(int argc, char **argv)

@@ -27,6 +27,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+int	debug = LOG_NOTICE;
+
 void logger(int severity, int syserr, const char *format, ...)
 {
 	va_list	ap;
@@ -68,9 +70,9 @@ free:
 	va_end(ap);
 }
 
+/* palmed wisdom from http://stackoverflow.com/questions/1674162/ */
 #define RETRY_ERROR(x) (x == EAGAIN || x == EWOULDBLOCK || x == EINTR)
 
-/* palmed wisdom from http://stackoverflow.com/questions/1674162/ */
 ssize_t _recvfrom(int sockfd, void *buf, size_t len, int flags,
 		struct sockaddr *src_addr, socklen_t *addrlen)
 {
