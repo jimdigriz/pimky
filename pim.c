@@ -24,6 +24,7 @@
 
 #include <unistd.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <arpa/inet.h>
 #include <netinet/ip.h>
@@ -184,57 +185,94 @@ int pim_shutdown(int sock)
 	return EX_OK;
 }
 
+int pim_hello_opt_add(char **buf, size_t len, unsigned int opt, void *data)
+{
+	struct pimopt	option;
+	unsigned int	olen = 2 * sizeof(uint16_t);
+
+	memset(&option, 0, sizeof(option));
+
+	option.type = htons(opt);
+
+	switch (opt) {
+	case PIM_OPT_HOLDTIME:
+		olen		+= sizeof(option.value.holdtime);
+		option.len	= htons(sizeof(option.value.holdtime));
+
+		if (running)
+			option.value.holdtime = htons(RFC4601_Default_Hello_Holdtime);
+		break;
+	default:
+		logger(LOG_ERR, 0, "unknown PIM hello option: %d", opt);
+		return -EX_SOFTWARE;
+	}
+
+	*buf = realloc(*buf, len + olen);
+	if (*buf == NULL) {
+		logger(LOG_ERR, errno, "realloc() for pimopt appending");
+		return -EX_OSERR;
+	}
+
+	memcpy(&(*buf)[len], &option, olen);
+
+	return len + olen;
+}
+
 void pim_hello_send(void)
 {
 	struct iface_map	*ifm;
 	union sockstore		store;
 	int			ret;
-	char			pimpkt[sizeof(struct ip6_pseudohdr)
-					+ sizeof(struct pimhdr)
-					+ sizeof(struct pimopt)];
+	char			*pimpkt;
 	struct ip6_pseudohdr	*ip6;
 	struct pimhdr		*pim;
-	struct pimopt		*pimopt;
+	unsigned int		len;
 	struct ip_mreqn		mreq;
-
 	struct sockaddr_storage src;
 
 	fprintf(stderr, "sent pim hello\n");
 
-	memset(pimpkt, 0, sizeof(pimpkt));
+	len = sizeof(struct ip6_pseudohdr) + sizeof(struct pimhdr);
 
+	pimpkt = malloc(len);
+	if (pimpkt == NULL) {
+		logger(LOG_ERR, errno, "malloc() for pim hello packet");
+		return;
+	}
+
+	memset(pimpkt, 0, len);
+
+	ip6	= (struct ip6_pseudohdr *) pimpkt;
 	pim	= (struct pimhdr *) &pimpkt[sizeof(struct ip6_pseudohdr)];
-	pimopt	= (struct pimopt *) &pimpkt[sizeof(struct ip6_pseudohdr)
-						+ sizeof(struct pimhdr)];
 
 	pim->ver			= 2;
 	pim->type			= PIM_HELLO;
-	pimopt->type			= htons(PIM_OPT_HOLDTIME);
-	pimopt->len			= htons(2);
-	if (running)
-		pimopt->payload.holdtime = htons(RFC4601_Default_Hello_Holdtime);
+
+	len = pim_hello_opt_add(&pimpkt, len, PIM_OPT_HOLDTIME, NULL);
+	if (len < 0)
+		return;
 
 	for (ifm = iface_map.next; ifm != NULL; ifm = ifm->next) {
+		int llen = len - sizeof(struct ip6_pseudohdr);
+
 		if (ifm->ip.v4) {
 			store.ss.ss_family	= AF_INET;
 
 			store.s4.sin_port	= htons(IPPROTO_PIM);
 			inet_pton(AF_INET, "224.0.0.13", &store.s4.sin_addr);
 
-			pim->cksum	= in_cksum(pim, sizeof(struct pimhdr)
-						+ sizeof(struct pimopt));
-
 			ret = mcast_join(mroute4, ifm->index, &store.ss);
 			assert(ret == EX_OK || ret == -EX_TEMPFAIL);
+
+			pim->cksum	= in_cksum(pim, llen);
 
 			memset(&mreq, 0, sizeof(mreq));
 			mreq.imr_ifindex = ifm->index;
 			ret = setsockopt(pim4, IPPROTO_IP, IP_MULTICAST_IF,
 					&mreq, sizeof(mreq));
 			if (ret == 0)
-				ret = _sendto(pim4, pim, sizeof(struct pimhdr)
-							+ sizeof(struct pimopt),
-						0, &store.sa, sizeof(store));
+				ret = _sendto(pim4, pim, llen, 0,
+						&store.sa, sizeof(store));
 			if (ret == -1)
 				logger(LOG_ERR, errno, "unable to send pim4"
 							" on %s", ifm->name);
@@ -248,7 +286,9 @@ void pim_hello_send(void)
 			store.s6.sin6_scope_id	= ifm->index;
 			inet_pton(AF_INET6, "ff02::d", &store.s6.sin6_addr);
 
-			ip6 = (struct ip6_pseudohdr *) &pimpkt;
+			ret = mcast_join(mroute6, ifm->index, &store.ss);
+			assert(ret == EX_OK || ret == -EX_TEMPFAIL);
+
 			ret = route_getsrc(ifm->index, &store.ss, &src);
 			assert(ret == EX_OK);
 
@@ -256,20 +296,13 @@ void pim_hello_send(void)
 					sizeof(struct in6_addr));
 			memcpy(&ip6->dst, &store.s6.sin6_addr,
 					sizeof(struct in6_addr));
-			ip6->len	= htonl(sizeof(struct pimhdr)
-						+ sizeof(struct pimopt));
+			ip6->len	= htonl(llen);
 			ip6->nexthdr	= IPPROTO_PIM;
 
-			pim->cksum	= in_cksum(ip6, sizeof(struct ip6_pseudohdr)
-						+ sizeof(struct pimhdr)
-						+ sizeof(struct pimopt));
+			pim->cksum	= in_cksum(ip6, len);
 
-			ret = mcast_join(mroute6, ifm->index, &store.ss);
-			assert(ret == EX_OK || ret == -EX_TEMPFAIL);
-
-			ret = _sendto(pim6, pim, sizeof(struct pimhdr)
-							+ sizeof(struct pimopt),
-					0, &store.sa, sizeof(store));
+			ret = _sendto(pim6, pim, llen, 0,
+					&store.sa, sizeof(store));
 			if (ret == -1)
 				logger(LOG_ERR, errno, "unable to send pim6"
 							" on %s", ifm->name);

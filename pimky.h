@@ -54,7 +54,7 @@ struct pimopt {
 
 	union {
 		uint16_t	holdtime;
-	} payload;
+	} value;
 } __attribute__((__packed__));
 
 struct pimhdr {
@@ -162,6 +162,7 @@ int route_getsrc(int, struct sockaddr_storage *, struct sockaddr_storage *);
 /* pim.c */
 int pim_init(int);
 int pim_shutdown(int);
+int pim_hello_opt_add(char **, size_t, unsigned int, void *);
 void pim_hello_send(void);
 void pim_recv(int, void *, int, struct sockaddr_storage *, socklen_t);
 int pim_register(int);
