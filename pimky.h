@@ -54,6 +54,7 @@ struct pimopt {
 
 	union {
 		uint16_t	holdtime;
+		uint32_t	dr_priority;
 	} value;
 } __attribute__((__packed__));
 
@@ -86,10 +87,14 @@ enum {
 };
 
 enum {
-	PIM_OPT_HOLDTIME	= 1
+	PIM_OPT_HOLDTIME	= 1,
+/*	PIM_OPT_LAN PRUNE_DELAY	= 2,	*/
+	PIM_OPT_DR_PRIORITY	= 19
+/*	PIM_OPT_GENERATION_ID	= 20,	*/
+/*	PIM_OPT_ADDRESS_LIST	= 24	*/
 };
 
-struct ip6_pseudohdr {
+struct ip6_phdr {
 	struct in6_addr	src;
 	struct in6_addr	dst;
 	uint32_t	len;
