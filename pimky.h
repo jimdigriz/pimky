@@ -45,7 +45,7 @@ extern struct iface_map	iface_map;
 
 #define RFC3376_RFC3810_Query_Interval	125
 #define RFC4601_Hello_Period		 30
-#define RFC4601_Default_Hello_Holdtime	(3.5 * RFC4601_Hello_Period)
+#define RFC4601_Default_Hello_Holdtime	 (3.5 * RFC4601_Hello_Period)
 #define RFC4601_Triggered_Hello_Delay	  5
 
 struct pimopt {
