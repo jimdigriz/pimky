@@ -76,10 +76,13 @@ int iface_map_get(void)
 	}
 
 	for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
-		if (!(ifa->ifa_flags & (IFF_UP | IFF_MULTICAST)))
+		if (ifa->ifa_flags & IFF_LOOPBACK)
 			continue;
 
-		if (ifa->ifa_flags & IFF_LOOPBACK)
+		if (!(ifa->ifa_flags & IFF_UP))
+			continue;
+
+		if (!(ifa->ifa_flags & IFF_MULTICAST))
 			continue;
 
 #ifdef __linux__
