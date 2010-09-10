@@ -26,6 +26,7 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 int	debug = LOG_NOTICE;
 
@@ -157,4 +158,27 @@ int family_to_level(int type)
 				__func__, type);
 		return -EX_SOFTWARE;
 	}
+}
+
+/* rand() might return not enough bits to make use of */
+unsigned int genrand(unsigned int max)
+{
+	unsigned int	rand_tot = 0, rand_max = RAND_MAX;
+	static int	seeded = 0;
+
+	if (seeded == 0) {
+		seeded = 1;
+		srand(time(NULL));
+	}
+
+	do {
+		rand_tot <<= (__builtin_clz(0)
+				- __builtin_clz((unsigned int) RAND_MAX));
+		rand_tot +=  rand();
+
+		rand_max <<= (__builtin_clz(0)
+				- __builtin_clz((unsigned int) RAND_MAX));
+	} while (rand_max < max);
+
+	return rand_tot % max;
 }

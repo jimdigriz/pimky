@@ -91,9 +91,9 @@ enum {
 enum {
 	PIM_OPT_HOLDTIME	= 1,
 /*	PIM_OPT_LAN PRUNE_DELAY	= 2,	*/
-	PIM_OPT_DR_PRIORITY	= 19
+	PIM_OPT_DR_PRIORITY	= 19,
 /*	PIM_OPT_GENERATION_ID	= 20,	*/
-/*	PIM_OPT_ADDRESS_LIST	= 24	*/
+	PIM_OPT_ADDRESS_LIST	= 24
 };
 
 struct ip6_phdr {
@@ -167,6 +167,7 @@ ssize_t _sendto(int, const void *, size_t, int,
 int socktype(int sock);
 uint16_t in_cksum(const void *, int);
 int family_to_level(int);
+unsigned int genrand(unsigned int);
 
 /* net.c */
 int iface_info_glue(void);

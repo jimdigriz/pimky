@@ -187,7 +187,6 @@ exit:
 
 int prime_timers(timer_t *mld, timer_t *pim)
 {
-	unsigned int		rand_tot = 0, rand_max = RAND_MAX;
 	struct itimerspec	timer;
 	struct sigevent		event;
 
@@ -213,17 +212,7 @@ int prime_timers(timer_t *mld, timer_t *pim)
 		goto mld;
 	}
 
-	/* rand() might return not enough bits to make use of */
-	srand(time(NULL));
-	do {
-		rand_tot <<= (__builtin_clz(0)
-				- __builtin_clz((unsigned int) RAND_MAX));
-		rand_tot +=  rand();
-
-		rand_max <<= (__builtin_clz(0)
-				- __builtin_clz((unsigned int) RAND_MAX));
-	} while (rand_max < (RFC4601_Triggered_Hello_Delay * (int) 1e6));
-	timer.it_value.tv_nsec		= rand_tot % (RFC4601_Triggered_Hello_Delay * (int) 1e6);
+	timer.it_value.tv_nsec		= genrand(RFC4601_Triggered_Hello_Delay * (int) 1e6);
 
 	timer.it_value.tv_sec		= (time_t) timer.it_value.tv_nsec / 1e6;
 	timer.it_value.tv_nsec		= timer.it_value.tv_nsec % (int) 1e6;
