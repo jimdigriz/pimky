@@ -163,8 +163,10 @@ int family_to_level(int type)
 /* rand() might return not enough bits to make use of */
 unsigned int genrand(unsigned int max)
 {
-	unsigned int	rand_tot = 0, rand_max = RAND_MAX;
-	static int	seeded = 0;
+	static unsigned int	seeded = 0;
+	unsigned int		rnd_bits = __builtin_clz(0) - __builtin_clz((unsigned int) RAND_MAX);
+	unsigned int		max_bits = __builtin_clz(0) - __builtin_clz((unsigned int) max);
+	unsigned int		total = 0;
 
 	if (seeded == 0) {
 		seeded = 1;
@@ -172,13 +174,11 @@ unsigned int genrand(unsigned int max)
 	}
 
 	do {
-		rand_tot <<= (__builtin_clz(0)
-				- __builtin_clz((unsigned int) RAND_MAX));
-		rand_tot +=  rand();
+		total +=  rand();
 
-		rand_max <<= (__builtin_clz(0)
+		rnd_bits += (__builtin_clz(0)
 				- __builtin_clz((unsigned int) RAND_MAX));
-	} while (rand_max < max);
+	} while (rnd_bits < max_bits);
 
-	return rand_tot % max;
+	return total % max;
 }
