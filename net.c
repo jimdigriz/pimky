@@ -56,6 +56,7 @@ int iface_info_glue(void)
 			strncpy(ifinfo->name, ifm->name, IFNAMSIZ);
 
 			ifinfo->dr_priority	= RFC4601_Default_DR_Priority;
+			ifinfo->generation_id	= genrand(UINT32_MAX);
 
 			ifinfo->map		= ifm;
 			ifm->info		= ifinfo;

@@ -57,6 +57,7 @@ struct pimopt {
 	union {
 		uint16_t	holdtime;
 		uint32_t	dr_priority;
+		uint32_t	generation_id;
 	} value;
 } __attribute__((__packed__));
 
@@ -92,7 +93,7 @@ enum {
 	PIM_OPT_HOLDTIME	= 1,
 /*	PIM_OPT_LAN PRUNE_DELAY	= 2,	*/
 	PIM_OPT_DR_PRIORITY	= 19,
-/*	PIM_OPT_GENERATION_ID	= 20,	*/
+	PIM_OPT_GENERATION_ID	= 20,
 	PIM_OPT_ADDRESS_LIST	= 24
 };
 
@@ -146,6 +147,7 @@ struct iface_info {
 	unsigned int		index;
 
 	uint32_t		dr_priority;
+	uint32_t		generation_id;
 
 	struct iface_map	*map;
 };
@@ -184,7 +186,8 @@ int route_getsrc(int, struct sockaddr_storage *, struct sockaddr_storage *);
 /* pim.c */
 int pim_init(int);
 int pim_shutdown(int);
-int pim_hello_opt_add(char **, size_t, unsigned int, void *);
+int pim_hello_opt_add(char **, size_t, unsigned int,
+		struct sockaddr_storage *, void *);
 void pim_hello_send(void);
 void pim_recv(int, void *, int, struct sockaddr_storage *, socklen_t);
 int pim_register(int);
