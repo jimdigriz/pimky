@@ -207,6 +207,7 @@ int pim_hello_opt_add(unsigned char **buf, size_t len, unsigned int opt,
 		optlen = sizeof(option->value.generation_id);
 		break;
 	case PIM_OPT_ADDRESS_LIST:
+		optlen = 0;
 		switch (store->sa.sa_family) {
 		case AF_INET:
 			optlen = (ifm->ip.v4 - 1)*(2 + sizeof(struct in_addr));
