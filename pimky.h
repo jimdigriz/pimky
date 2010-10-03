@@ -44,6 +44,10 @@ extern int				pim4, pim6;
 extern struct iface_map			iface_map;
 extern struct iface_info		iface_info;
 
+/* IANA address-family-numbers */
+#define IANA_AFI_IPV4			1
+#define IANA_AFI_IPV6			2
+
 #define RFC3376_RFC3810_Query_Interval	125
 #define RFC4601_Hello_Period		 30
 #define RFC4601_Default_Hello_Holdtime	 (3.5 * RFC4601_Hello_Period)
@@ -133,8 +137,8 @@ struct iface_map {
 	struct iface_map_addr	*addr;
 
 	struct {
-		unsigned int	v4:1;
-		unsigned int	v6:1;
+		unsigned short	v4;
+		unsigned short	v6;
 	} ip;
 
 	struct iface_info	*info;
@@ -186,8 +190,8 @@ int route_getsrc(int, struct sockaddr_storage *, struct sockaddr_storage *);
 /* pim.c */
 int pim_init(int);
 int pim_shutdown(int);
-int pim_hello_opt_add(char **, size_t, unsigned int,
-		struct sockaddr_storage *, void *);
+int pim_hello_opt_add(unsigned char **, size_t, unsigned int,
+		struct sockaddr_storage *, struct iface_map *);
 void pim_hello_send(void);
 void pim_recv(int, void *, int, struct sockaddr_storage *, socklen_t);
 int pim_register(int);

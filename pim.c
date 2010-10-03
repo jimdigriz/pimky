@@ -185,57 +185,106 @@ int pim_shutdown(int sock)
 	return EX_OK;
 }
 
-int pim_hello_opt_add(char **buf, size_t len, unsigned int opt,
-		struct sockaddr_storage *ss, void *data)
+int pim_hello_opt_add(unsigned char **buf, size_t len, unsigned int opt,
+		struct sockaddr_storage *ss, struct iface_map *ifm)
 {
 	union sockstore		*store = (union sockstore *) ss;
-	struct pimopt		option;
-	unsigned int		olen = 2 * sizeof(uint16_t);
-	struct iface_info	*ifinfo;
-
-	memset(&option, 0, sizeof(struct pimopt));
-
-	option.type = htons(opt);
+	union sockstore		*storeaddr;
+	struct iface_map_addr	*ifa = ifm->addr;
+	struct iface_info	*ifi = ifm->info;
+	struct pimopt		*option;
+	unsigned int		optlen, i;
+	unsigned char		*payload;
 
 	switch (opt) {
 	case PIM_OPT_HOLDTIME:
-		olen		+= sizeof(option.value.holdtime);
-		option.len	= htons(sizeof(option.value.holdtime));
-
-		if (running)
-			option.value.holdtime	= htons(RFC4601_Default_Hello_Holdtime);
+		optlen = sizeof(option->value.holdtime);
 		break;
 	case PIM_OPT_DR_PRIORITY:
-		olen		+= sizeof(option.value.dr_priority);
-		option.len	= htons(sizeof(option.value.dr_priority));
-
-		ifinfo = data;
-		option.value.dr_priority	= htonl(ifinfo->dr_priority);
+		optlen = sizeof(option->value.dr_priority);
 		break;
 	case PIM_OPT_GENERATION_ID:
-		olen		+= sizeof(option.value.generation_id);
-		option.len	= htons(sizeof(option.value.generation_id));
-
-		ifinfo = data;
-		option.value.generation_id	= htonl(ifinfo->generation_id);
+		optlen = sizeof(option->value.generation_id);
 		break;
 	case PIM_OPT_ADDRESS_LIST:
-		logger(LOG_WARNING, 0, "todo PIM_OPT_ADDRESS_LIST");
-		return len;
+		switch (store->sa.sa_family) {
+		case AF_INET:
+			optlen = (ifm->ip.v4 - 1)*(2 + sizeof(struct in_addr));
+			break;
+		case AF_INET6:
+			optlen = (ifm->ip.v6 - 1)*(2 + sizeof(struct in6_addr));
+			break;
+		}
+		/* no secondary addresses */
+		if (optlen == 0)
+			return len;
+		break;
 	default:
 		logger(LOG_ERR, 0, "unknown PIM hello option: %d", opt);
 		return -EX_SOFTWARE;
 	}
 
-	*buf = realloc(*buf, len + olen);
+	*buf = realloc(*buf, len + 2*sizeof(uint16_t) + optlen);
 	if (*buf == NULL) {
 		logger(LOG_ERR, errno, "realloc() for pimopt appending");
 		return -EX_OSERR;
 	}
 
-	memcpy(&(*buf)[len], &option, olen);
+	option		= (struct pimopt *) &(*buf)[len];
+	option->type	= htons(opt);
+	option->len	= htons(optlen);
 
-	return len + olen;
+	switch (opt) {
+	case PIM_OPT_HOLDTIME:
+		if (running)
+			option->value.holdtime	= htons(RFC4601_Default_Hello_Holdtime);
+		else
+			option->value.holdtime	= htons(0);
+		break;
+	case PIM_OPT_DR_PRIORITY:
+		option->value.dr_priority	= htonl(ifi->dr_priority);
+		break;
+	case PIM_OPT_GENERATION_ID:
+		option->value.generation_id	= htonl(ifi->generation_id);
+		break;
+	case PIM_OPT_ADDRESS_LIST:
+		payload = &(*buf)[len + 2*sizeof(uint16_t)];
+		i = 0;
+		for (ifa = ifa->next; ifa != NULL; ifa = ifa->next) {
+			storeaddr = (union sockstore *) &ifa->addr;
+
+			if (storeaddr->sa.sa_family != store->sa.sa_family)
+				continue;
+
+			switch (storeaddr->sa.sa_family) {
+			case AF_INET:
+				if (storeaddr->s4.sin_addr.s_addr == store->s4.sin_addr.s_addr)
+					continue;
+
+				payload[i+0] = IANA_AFI_IPV4;
+				payload[i+1] = 0;
+				memcpy(&payload[i+2],
+						&storeaddr->s4.sin_addr.s_addr,
+						sizeof(struct in_addr));
+				i += 2 + sizeof(struct in_addr);
+				break;
+			case AF_INET6:
+				if (IN6_ARE_ADDR_EQUAL(&storeaddr->s6.sin6_addr, &store->s6.sin6_addr))
+					continue;
+
+				payload[i+0] = IANA_AFI_IPV6;
+				payload[i+1] = 0;
+				memcpy(&payload[i+2],
+						&storeaddr->s6.sin6_addr,
+						sizeof(struct in6_addr));
+				i += 2 + sizeof(struct in6_addr);
+				break;
+			}
+		}
+		break;
+	}
+
+	return len + 2*sizeof(uint16_t) + optlen;
 }
 
 void pim_hello_send(void)
@@ -243,8 +292,8 @@ void pim_hello_send(void)
 	struct iface_map	*ifm;
 	union sockstore		store;
 	int			ret;
-	char			*pimpkt, *lpimpkt;
-	struct pimhdr		*pim, *lpim;
+	unsigned char		*pimpkt, *lpimpkt;
+	struct pimhdr		*pim;
 	unsigned int		len, llen;
 	struct ip_mreqn		mreq;
 	struct ip6_phdr		*ip6;
@@ -264,22 +313,22 @@ void pim_hello_send(void)
 		}
 		memset(pimpkt, 0, len);
 
-		len = pim_hello_opt_add(&pimpkt, len,
-				PIM_OPT_HOLDTIME, NULL, NULL);
-		if (len < 0)
-			goto free;
-		len = pim_hello_opt_add(&pimpkt, len,
-				PIM_OPT_DR_PRIORITY, NULL, ifm->info);
-		if (len < 0)
-			goto free;
-		len = pim_hello_opt_add(&pimpkt, len, 
-				PIM_OPT_GENERATION_ID, NULL, ifm->info);
-		if (len < 0)
-			goto free;
-
 		pim		= (struct pimhdr *) pimpkt;
 		pim->ver	= 2;
 		pim->type	= PIM_HELLO;
+
+		len = pim_hello_opt_add(&pimpkt, len,
+				PIM_OPT_HOLDTIME, NULL, ifm);
+		if (len < 0)
+			goto free;
+		len = pim_hello_opt_add(&pimpkt, len,
+				PIM_OPT_DR_PRIORITY, NULL, ifm);
+		if (len < 0)
+			goto free;
+		len = pim_hello_opt_add(&pimpkt, len,
+				PIM_OPT_GENERATION_ID, NULL, ifm);
+		if (len < 0)
+			goto free;
 
 		if (ifm->ip.v4) {
 			lpimpkt	= malloc(len);
@@ -302,19 +351,19 @@ void pim_hello_send(void)
 			ret = route_getsrc(ifm->index, &store.ss, &src);
 			assert(ret == EX_OK);
 
-			llen = pim_hello_opt_add(&lpimpkt, llen, 
-					PIM_OPT_ADDRESS_LIST, &src, ifm->addr);
+			llen = pim_hello_opt_add(&lpimpkt, llen,
+					PIM_OPT_ADDRESS_LIST, &src, ifm);
 			if (llen < 0)
 				goto free_v4;
 
-			lpim		= (struct pimhdr *) lpimpkt;
-			lpim->cksum	= in_cksum(lpim, llen);
+			pim		= (struct pimhdr *) lpimpkt;
+			pim->cksum	= in_cksum(pim, llen);
 
 			mreq.imr_ifindex = ifm->index;
 			ret = setsockopt(pim4, IPPROTO_IP, IP_MULTICAST_IF,
 					&mreq, sizeof(mreq));
 			if (ret == 0)
-				ret = _sendto(pim4, lpim, llen, 0,
+				ret = _sendto(pim4, pim, llen, 0,
 						&store.sa, sizeof(store));
 			if (ret == -1)
 				logger(LOG_ERR, errno, "unable to send pim4"
@@ -332,7 +381,7 @@ exit_v4:
 			}
 			memcpy(&lpimpkt[sizeof(struct ip6_phdr)], pimpkt, len);
 
-			llen			= len;
+			llen			= sizeof(struct ip6_phdr) + len;
 
 			store.ss.ss_family	= AF_INET6;
 
@@ -347,7 +396,7 @@ exit_v4:
 			assert(ret == EX_OK);
 
 			llen = pim_hello_opt_add(&lpimpkt, llen,
-					PIM_OPT_ADDRESS_LIST, &src, ifm->addr);
+					PIM_OPT_ADDRESS_LIST, &src, ifm);
 			if (llen < 0)
 				goto free_v6;
 
@@ -357,13 +406,13 @@ exit_v4:
 					sizeof(struct in6_addr));
 			memcpy(&ip6->dst, &store.s6.sin6_addr,
 					sizeof(struct in6_addr));
-			ip6->len	= htonl(llen);
+			ip6->len	= htonl(llen - sizeof(struct ip6_phdr));
 			ip6->nexthdr	= IPPROTO_PIM;
 
-			lpim		= (struct pimhdr *) &lpimpkt[sizeof(struct ip6_phdr)];
-			lpim->cksum	= in_cksum(ip6, sizeof(struct ip6_phdr) + llen);
+			pim		= (struct pimhdr *) &lpimpkt[sizeof(struct ip6_phdr)];
+			pim->cksum	= in_cksum(ip6, llen);
 
-			ret = _sendto(pim6, lpim, llen, 0,
+			ret = _sendto(pim6, pim, llen - sizeof(struct ip6_phdr), 0,
 					&store.sa, sizeof(store));
 			if (ret == -1)
 				logger(LOG_ERR, errno, "unable to send pim6"

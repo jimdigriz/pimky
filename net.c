@@ -218,19 +218,26 @@ int iface_map_get(void)
 				&& ifa->ifa_broadaddr)
 			memcpy(&ifma->ifu.broadaddr, ifa->ifa_broadaddr,
 					sizeof(ifma->ifu.broadaddr));
+
+		switch (ifa->ifa_addr->sa_family) {
+		case AF_INET:
+			ifm->ip.v4++;
+			break;
+		case AF_INET6:
+			ifm->ip.v6++;
+			break;
+		}
 	}
 
 	/* check we are not exceeding MAXVIFS or MAXMIFS */
 	for (ifm = iface_map.next; ifm != NULL; ifm = ifm->next) {
 		for (ifma = ifm->addr->next; ifma != NULL; ifma = ifma->next)
 			if (ifma->addr.ss_family == AF_INET) {
-				ifm->ip.v4 = 1;
 				cifv4++;
 				break;
 			}
 		for (ifma = ifm->addr->next; ifma != NULL; ifma = ifma->next)
 			if (ifma->addr.ss_family == AF_INET6) {
-				ifm->ip.v6 = 1;
 				cifv6++;
 				break;
 			}
