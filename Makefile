@@ -17,16 +17,22 @@ else
 	@echo Sorry \'$(KERNEL)\' is not supported
 	@false
 endif
-ifdef DEBUG
-	CFLAGS  += -g -pg -O0
-	LDFLAGS += -g -pg
-else
+
+ifdef EMBEDDED
 	CFLAGS  += -DNDEBUG -Os
+else 
+	CFLAGS  += -g -O0
+	LDFLAGS += -g
+
+	ifdef PROFILE
+		CFLAGS  += -pg
+		LDFLAGS += -pg
+	endif
 endif
 
 pimky: $(OBJS)
 	$(CROSS_COMPILE)$(CC) $(LDFLAGS) $^ -o pimky
-ifndef DEBUG
+ifdef EMBEDDED
 	$(CROSS_COMPILE)strip pimky
 endif
 
