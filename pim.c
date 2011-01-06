@@ -349,13 +349,15 @@ void pim_hello_send(void)
 			ret = mcast_join(mroute4, ifm->index, &store.ss);
 			assert(ret == EX_OK || ret == -EX_TEMPFAIL);
 
-			ret = route_getsrc(ifm->index, &store.ss, &src);
-			assert(ret == EX_OK);
+			if (ifm->ip.v4 > 1) {
+				ret = route_getsrc(ifm->index, &store.ss, &src);
+				assert(ret == EX_OK);
 
-			llen = pim_hello_opt_add(&lpimpkt, llen,
-					PIM_OPT_ADDRESS_LIST, &src, ifm);
-			if (llen < 0)
-				goto free_v4;
+				llen = pim_hello_opt_add(&lpimpkt, llen,
+						PIM_OPT_ADDRESS_LIST, &src, ifm);
+				if (llen < 0)
+					goto free_v4;
+			}
 
 			pim		= (struct pimhdr *) lpimpkt;
 			pim->cksum	= in_cksum(pim, llen);
@@ -396,10 +398,12 @@ exit_v4:
 			ret = route_getsrc(ifm->index, &store.ss, &src);
 			assert(ret == EX_OK);
 
-			llen = pim_hello_opt_add(&lpimpkt, llen,
-					PIM_OPT_ADDRESS_LIST, &src, ifm);
-			if (llen < 0)
-				goto free_v6;
+			if (ifm->ip.v6 > 1) {
+				llen = pim_hello_opt_add(&lpimpkt, llen,
+						PIM_OPT_ADDRESS_LIST, &src, ifm);
+				if (llen < 0)
+					goto free_v6;
+			}
 
 			ip6		= (struct ip6_phdr *) lpimpkt;
 			memset(ip6, 0, sizeof(struct ip6_phdr));
