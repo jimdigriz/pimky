@@ -207,17 +207,14 @@ int iface_map_get(void)
 		/* I assume the following always holds true */
 		assert(ifm->flags == ifma->flags);
 
-		memcpy(&ifma->addr, ifa->ifa_addr, sizeof(ifma->addr));
+		ifma->addr = *(struct sockaddr_storage *)ifa->ifa_addr;
 		if (ifa->ifa_netmask)
-			memcpy(&ifma->netmask, ifa->ifa_netmask,
-					sizeof(ifma->netmask));
+			ifma->netmask = *(struct sockaddr_storage *)ifa->ifa_netmask;
 		if (ifa->ifa_flags & IFF_POINTOPOINT)
-			memcpy(&ifma->ifu.dstaddr, ifa->ifa_dstaddr,
-					sizeof(ifma->ifu.dstaddr));
+			ifma->ifu.dstaddr = *(struct sockaddr_storage *)ifa->ifa_dstaddr;
 		else if (ifa->ifa_flags & IFF_BROADCAST
 				&& ifa->ifa_broadaddr)
-			memcpy(&ifma->ifu.broadaddr, ifa->ifa_broadaddr,
-					sizeof(ifma->ifu.broadaddr));
+			ifma->ifu.broadaddr = *(struct sockaddr_storage *)ifa->ifa_broadaddr;
 
 		switch (ifa->ifa_addr->sa_family) {
 		case AF_INET:
@@ -270,7 +267,7 @@ int mcast_join(int sock, int ifi, struct sockaddr_storage *group)
 		return sl;
 
 	greq.gr_interface = ifi;
-	memcpy(&greq.gr_group, group, sizeof(*group));
+	greq.gr_group = *group;
 	if (setsockopt(sock, sl, MCAST_JOIN_GROUP, &greq, sizeof(greq)) < 0) {
 		/* we do not actually care if we are already joined */
 		if (errno == EADDRINUSE)

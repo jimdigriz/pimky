@@ -407,10 +407,8 @@ exit_v4:
 
 			ip6		= (struct ip6_phdr *) lpimpkt;
 			memset(ip6, 0, sizeof(struct ip6_phdr));
-			memcpy(&ip6->src, &((struct sockaddr_in6 *)&src)->sin6_addr,
-					sizeof(struct in6_addr));
-			memcpy(&ip6->dst, &store.s6.sin6_addr,
-					sizeof(struct in6_addr));
+			ip6->src	= ((struct sockaddr_in6 *)&src)->sin6_addr;
+			ip6->dst	= store.s6.sin6_addr;
 			ip6->len	= htonl(llen - sizeof(struct ip6_phdr));
 			ip6->nexthdr	= IPPROTO_PIM;
 
