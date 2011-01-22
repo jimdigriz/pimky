@@ -134,10 +134,11 @@ uint16_t in_cksum(const void *buf, int len)
 	const uint16_t	*b	= buf;
 	uint32_t	sum	= 0;
 
-	assert(len % 2 == 0);
-
 	for (; b < (uint16_t *) ((char *)buf + len); b++)
 		sum += *b;
+
+	if (len % 2)
+		sum += ((char *) buf)[len-1];
 
 	sum  = (sum >> 16) + (sum & 0xffff);
 	sum += (sum >> 16);
