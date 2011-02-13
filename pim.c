@@ -298,7 +298,7 @@ void pim_hello_send(void)
 	unsigned int		len, llen;
 	struct ip_mreqn		mreq;
 	struct ip6_phdr		*ip6;
-	struct sockaddr_storage src;
+	union sockstore		src;
 
 	fprintf(stderr, "sent pim hello\n");
 
@@ -350,11 +350,11 @@ void pim_hello_send(void)
 			assert(ret == EX_OK || ret == -EX_TEMPFAIL);
 
 			if (ifm->ip.v4 > 1) {
-				ret = route_getsrc(ifm->index, &store.ss, &src);
+				ret = route_getsrc(ifm->index, &store.ss, &src.ss);
 				assert(ret == EX_OK);
 
 				llen = pim_hello_opt_add(&lpimpkt, llen,
-						PIM_OPT_ADDRESS_LIST, &src, ifm);
+						PIM_OPT_ADDRESS_LIST, &src.ss, ifm);
 				if (llen < 0)
 					goto free_v4;
 			}
@@ -395,19 +395,19 @@ exit_v4:
 			ret = mcast_join(mroute6, ifm->index, &store.ss);
 			assert(ret == EX_OK || ret == -EX_TEMPFAIL);
 
-			ret = route_getsrc(ifm->index, &store.ss, &src);
+			ret = route_getsrc(ifm->index, &store.ss, &src.ss);
 			assert(ret == EX_OK);
 
 			if (ifm->ip.v6 > 1) {
 				llen = pim_hello_opt_add(&lpimpkt, llen,
-						PIM_OPT_ADDRESS_LIST, &src, ifm);
+						PIM_OPT_ADDRESS_LIST, &src.ss, ifm);
 				if (llen < 0)
 					goto free_v6;
 			}
 
 			ip6		= (struct ip6_phdr *) lpimpkt;
 			memset(ip6, 0, sizeof(struct ip6_phdr));
-			ip6->src	= ((struct sockaddr_in6 *)&src)->sin6_addr;
+			ip6->src	= src.s6.sin6_addr;
 			ip6->dst	= store.s6.sin6_addr;
 			ip6->len	= htonl(llen - sizeof(struct ip6_phdr));
 			ip6->nexthdr	= IPPROTO_PIM;
