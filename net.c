@@ -210,10 +210,9 @@ int iface_map_get(void)
 		ifma->addr = *(struct sockaddr_storage *)ifa->ifa_addr;
 		if (ifa->ifa_netmask)
 			ifma->netmask = *(struct sockaddr_storage *)ifa->ifa_netmask;
-		if (ifa->ifa_flags & IFF_POINTOPOINT)
+		if (ifa->ifa_flags & IFF_POINTOPOINT && ifa->ifa_dstaddr)
 			ifma->ifu.dstaddr = *(struct sockaddr_storage *)ifa->ifa_dstaddr;
-		else if (ifa->ifa_flags & IFF_BROADCAST
-				&& ifa->ifa_broadaddr)
+		else if (ifa->ifa_flags & IFF_BROADCAST && ifa->ifa_broadaddr)
 			ifma->ifu.broadaddr = *(struct sockaddr_storage *)ifa->ifa_broadaddr;
 
 		switch (ifa->ifa_addr->sa_family) {
