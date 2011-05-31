@@ -179,11 +179,10 @@ unsigned int genrand(unsigned int max)
 
 	/* __builtin_clz(x) is not defined for x == 0 */
 	if (max > 0) {
-		bits = __builtin_clz(1) + 1
-				- __builtin_clz((unsigned int) max);
-		for (; bits > 0; bits -= rnd_bits) {
+		bits = __builtin_clz(1) + 1 - __builtin_clz(max);
+		for (; bits > 0; total <<= rnd_bits) {
 			total += rand();
-			total <<= rnd_bits;
+			bits -= rnd_bits;
 		}
 	}
 
