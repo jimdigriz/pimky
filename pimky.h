@@ -136,6 +136,14 @@ struct pimky_ifctl {
 	unsigned char	threshold;
 };
 
+union sockstore {
+	struct sockaddr_storage	ss;
+	struct sockaddr		sa;
+
+	struct sockaddr_in	s4;
+	struct sockaddr_in6	s6;
+};
+
 struct pim_neigh {
 	unsigned short		ipver;
 
@@ -184,16 +192,7 @@ struct iface_info {
 	uint32_t		generation_id;
 
 	struct iface_map	*map;
-
 	struct pim_neigh	*pim_neigh;
-};
-
-union sockstore {
-	struct sockaddr_storage	ss;
-	struct sockaddr		sa;
-
-	struct sockaddr_in	s4;
-	struct sockaddr_in6	s6;
 };
 
 /* utils.c */
