@@ -1,7 +1,7 @@
 /*
  * This file is part of:
  *	pimky - Slimline PIM Routing Daemon for IPv4 and IPv6
- * Copyright (C) 2010  Alexander Clouter <alex@digriz.org.uk>
+ * Copyright (C) 2010 - 2011  Alexander Clouter <alex@digriz.org.uk>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,7 +30,7 @@
 #include <netinet/in.h>
 #include <net/if.h>
 
-#define	VERSION				"2010081100"
+#define	VERSION				"2011053100"
 
 #define	UID				"nobody"
 #define	GID				"nogroup"
