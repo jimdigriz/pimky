@@ -98,7 +98,7 @@ enum {
 
 enum {
 	PIM_OPT_HOLDTIME	= 1,
-	PIM_OPT_LAN PRUNE_DELAY	= 2,
+	PIM_OPT_LAN_PRUNE_DELAY	= 2,
 	PIM_OPT_DR_PRIORITY	= 19,
 	PIM_OPT_GENERATION_ID	= 20,
 	PIM_OPT_ADDRESS_LIST	= 24
@@ -110,7 +110,7 @@ enum {
 	IGMPV1_MEMBER_REPORT	= 0x12,
 	IGMPV2_MEMBER_REPORT	= 0x16,
 	IGMPV2_LEAVE_GROUP	= 0x17,
-	IGMPV3_MEMBER_REPORT	= 0x22,
+	IGMPV3_MEMBER_REPORT	= 0x22
 };
 
 /* RFC3228 section 5 */
@@ -118,7 +118,7 @@ enum {
 	MLD_LISTEN_QUERY	= 130,
 	MLDV1_LISTEN_REPORT	= 131,
 	MLDV1_LISTEN_DONE	= 132,
-	MLDV2_LISTEN_REPORT	= 143,
+	MLDV2_LISTEN_REPORT	= 143
 };
 
 struct ip6_phdr {
@@ -134,6 +134,16 @@ struct pimky_ifctl {
 	unsigned short	ifi;
 	unsigned char	flags;
 	unsigned char	threshold;
+};
+
+struct pim_neigh {
+	unsigned short		ipver;
+
+	unsigned short		num_addr;
+	union sockstore		*addr;
+
+	uint32_t		dr_priority;
+	uint32_t		generation_id;
 };
 
 struct iface_map_addr {
@@ -174,6 +184,8 @@ struct iface_info {
 	uint32_t		generation_id;
 
 	struct iface_map	*map;
+
+	struct pim_neigh	*pim_neigh;
 };
 
 union sockstore {
