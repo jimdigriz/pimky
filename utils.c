@@ -180,10 +180,15 @@ unsigned int genrand(unsigned int max)
 	/* __builtin_clz(x) is not defined for x == 0 */
 	if (max > 0) {
 		bits = __builtin_clz(1) + 1 - __builtin_clz(max);
-		for (; bits > 0; total <<= rnd_bits) {
+
+		do {
 			total += rand();
 			bits -= rnd_bits;
-		}
+			if (bits <= 0)
+				break;
+
+			total <<= rnd_bits;
+		} while (1);
 	}
 
 	return total % max;
