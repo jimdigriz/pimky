@@ -138,9 +138,6 @@ int signals(void (*handler)(int))
 	ret = sigaction(SIGTERM, &action, NULL);
 	if (ret)
 		goto err;
-	ret = sigaction(SIGTERM, &action, NULL);
-	if (ret)
-		goto err;
 	ret = sigaction(SIGINT,  &action, NULL);
 	if (ret)
 		goto err;
