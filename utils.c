@@ -26,7 +26,6 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
 
 int	debug = LOG_NOTICE;
 
@@ -74,18 +73,62 @@ free:
 /* palmed wisdom from http://stackoverflow.com/questions/1674162/ */
 #define RETRY_ERROR(x) (x == EAGAIN || x == EWOULDBLOCK || x == EINTR)
 
-ssize_t _recvfrom(int sockfd, void *buf, size_t len, int flags,
-		struct sockaddr *src_addr, socklen_t *addrlen)
+ssize_t _recvmsg(int sockfd, void *buf, size_t len, int flags,
+		struct sockaddr *from, struct sockaddr *to,
+		socklen_t *addrlen, unsigned int *from_ifindex)
 {
-	int	count;
+	int			count;
+	struct msghdr		msgh;
+	struct iovec		iov;
+	struct cmsghdr		*cmsg;
+	union {
+		char cmsg[CMSG_SPACE(sizeof(struct in_pktinfo))];
+		char cmsg6[CMSG_SPACE(sizeof(struct in6_pktinfo))];
+	} cbuf;
+
+	memset(&cbuf, 0, sizeof(cbuf));
+	memset(&msgh, 0, sizeof(struct msghdr));
+
+	iov.iov_base = buf;
+	iov.iov_len = len;
+
+	if (from) {
+		msgh.msg_name = from;
+		msgh.msg_namelen = *addrlen;
+	}
+	msgh.msg_iov = &iov;
+	msgh.msg_iovlen = 1;
+	msgh.msg_control = &cbuf;
+	msgh.msg_controllen = sizeof(cbuf);
 
 	do {
-		count = recvfrom(sockfd, buf, len, flags,
-				src_addr, addrlen);
-		if (count == -1)
+		count = recvmsg(sockfd, &msgh, flags);
+		if (count == -1) {
 			if (RETRY_ERROR(errno))
 				continue;
+
+			logger(LOG_WARNING, errno, "recvmsg()");
+		}
 	} while (!count);
+
+	if (!to)
+		return count;
+
+	for (cmsg = CMSG_FIRSTHDR(&msgh); cmsg != NULL;
+			cmsg = CMSG_NXTHDR(&msgh, cmsg)) {
+		if (cmsg->cmsg_level == IPPROTO_IP
+				&& cmsg->cmsg_type == IP_PKTINFO) {
+			struct in_pktinfo *i = (struct in_pktinfo *) CMSG_DATA(cmsg);
+			((struct sockaddr_in *)to)->sin_addr = i->ipi_addr;
+			to->sa_family = AF_INET;
+		}
+		else if (cmsg->cmsg_level == IPPROTO_IPV6
+				&& cmsg->cmsg_type == IPV6_PKTINFO) {
+			struct in6_pktinfo *i = (struct in6_pktinfo *) CMSG_DATA(cmsg);
+			((struct sockaddr_in6 *)to)->sin6_addr = i->ipi6_addr;
+			to->sa_family = AF_INET6;
+		}
+	}
 
 	return count;
 }

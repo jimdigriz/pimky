@@ -246,9 +246,9 @@ int main(int argc, char **argv)
 	timer_t			timerid_mld, timerid_pim;
 	struct pollfd		fds[4];
 	nfds_t			nfds = 0;
-	struct sockaddr_storage	src_addr;
-	unsigned int		src_ifindex;
-	socklen_t		addrlen = sizeof(src_addr);
+	struct sockaddr_storage	from, to;
+	socklen_t		addrlen = sizeof(struct sockaddr_storage);
+	unsigned int		from_ifindex;
 	char			*buf;
 
 	ret = parse_args(argc, argv);
@@ -388,21 +388,21 @@ int main(int argc, char **argv)
 				continue;
 
 			if (fds[i].revents & POLLIN) {
-				ret = _recvfrom(fds[i].fd, buf, SOCK_BUFLEN, 0,
-						(struct sockaddr *)&src_addr, &addrlen);
-				if (ret == -1) {
-					logger(LOG_WARNING, errno, "recvfrom()");
+				ret = _recvmsg(fds[i].fd, buf, SOCK_BUFLEN, 0,
+						(struct sockaddr *)&from,
+						(struct sockaddr *)&to,
+						&addrlen, &from_ifindex);
+				if (ret == -1)
 					continue;
-				}
 
 				if (fds[i].fd == pim4 || fds[i].fd == pim6)
 					pim_recv(fds[i].fd, buf, ret,
-							&src_addr, addrlen,
-							src_ifindex);
+							&from, &to, addrlen,
+							from_ifindex);
 				else
 					mld_recv(fds[i].fd, buf, ret,
-							&src_addr, addrlen,
-							src_ifindex);
+							&from, &to, addrlen,
+							from_ifindex);
 			}
 		}
 	}

@@ -434,7 +434,9 @@ free:
 }
 
 void pim_recv(int sock, void *buf, int len,
-		struct sockaddr_storage *src_addr, socklen_t addrlen,
+		struct sockaddr_storage *from,
+		struct sockaddr_storage *to,
+		socklen_t addrlen,
 		unsigned int src_ifindex)
 {
 	struct ip	*ip;
@@ -442,7 +444,7 @@ void pim_recv(int sock, void *buf, int len,
 
 	printf("called %s\n", __func__);
 
-	switch (src_addr->ss_family) {
+	switch (from->ss_family) {
 	case AF_INET:
 		ip	= buf;
 
@@ -477,7 +479,7 @@ void pim_recv(int sock, void *buf, int len,
 		break;
 	default:
 		logger(LOG_WARNING, 0, "%s(): unknown socket type: %d",
-				__func__, src_addr->ss_family);
+				__func__, from->ss_family);
 	}
 }
 
