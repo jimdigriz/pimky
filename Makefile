@@ -9,7 +9,7 @@ all: env pimky
 
 env:
 ifeq ($(KERNEL), Linux)
-CFLAGS += -D_BSD_SOURCE
+CFLAGS += -D_BSD_SOURCE -D_GNU_SOURCE
 else ifeq ($(KERNEL), FreeBSD)
 	@echo FreeBSD untested, expect your pants to explode!
 CFLAGS += -D__BSD_VISIBLE
