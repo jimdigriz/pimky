@@ -204,8 +204,9 @@ ssize_t _recvfrom(int, void *, size_t, int,
 ssize_t _sendto(int, const void *, size_t, int,
 		const struct sockaddr *, socklen_t);
 int socktype(int sock);
-uint16_t in_cksum(const void *, int);
 int family_to_level(int);
+int pktinfo(int);
+uint16_t in_cksum(const void *, int);
 unsigned int genrand(unsigned int);
 
 /* net.c */
@@ -226,9 +227,13 @@ int pim_shutdown(int);
 int pim_hello_opt_add(unsigned char **, size_t, unsigned int,
 		struct sockaddr_storage *, struct iface_map *);
 void pim_hello_send(void);
-void pim_recv(int, void *, int, struct sockaddr_storage *, socklen_t);
+void pim_recv(int, void *, int,
+		struct sockaddr_storage *, socklen_t,
+		unsigned int);
 int pim_register(int);
 
 /* mld.c */
 void mld_query_send(void);
-void mld_recv(int, void *, int, struct sockaddr_storage *, socklen_t);
+void mld_recv(int, void *, int,
+		struct sockaddr_storage *, socklen_t,
+		unsigned int);

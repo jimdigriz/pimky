@@ -247,6 +247,7 @@ int main(int argc, char **argv)
 	struct pollfd		fds[4];
 	nfds_t			nfds = 0;
 	struct sockaddr_storage	src_addr;
+	unsigned int		src_ifindex;
 	socklen_t		addrlen = sizeof(src_addr);
 	char			*buf;
 
@@ -285,32 +286,44 @@ int main(int argc, char **argv)
 
 	logger(LOG_NOTICE, 0, "started");
 
+	errno = 0;
 	mroute4 = socket(AF_INET, SOCK_RAW, IPPROTO_IGMP);
-	if (mroute4 < 0)
-		logger(LOG_WARNING, errno, "no IPv4 support");
-	else {
-		pim4 = pim_init(mroute4);
-		if (pim4 < 0) {
+	if (mroute4 >= 0) {
+		if (pktinfo(mroute4) < 0) {
 			close(mroute4);
 			mroute4 = -1;
 		} else {
-			add_poll(fds, &nfds, mroute4);
-			add_poll(fds, &nfds, pim4);
+			pim4 = pim_init(mroute4);
+			if (pim4 < 0) {
+				close(mroute4);
+				mroute4 = -1;
+			} else {
+				add_poll(fds, &nfds, mroute4);
+				add_poll(fds, &nfds, pim4);
+			}
 		}
 	}
+	if (mroute4 < 0)
+		logger(LOG_WARNING, errno, "no IPv4 support");
+	errno = 0;
 	mroute6 = socket(AF_INET6, SOCK_RAW, IPPROTO_ICMPV6);
-	if (mroute6 < 0)
-		logger(LOG_WARNING, errno, "no IPv6 support");
-	else {
-		pim6 = pim_init(mroute6);
-		if (pim6 < 0) {
+	if (mroute6 >= 0) {
+		if (pktinfo(mroute6) < 0) {
 			close(mroute6);
 			mroute6 = -1;
 		} else {
-			add_poll(fds, &nfds, mroute6);
-			add_poll(fds, &nfds, pim6);
+			pim6 = pim_init(mroute6);
+			if (pim6 < 0) {
+				close(mroute6);
+				mroute6 = -1;
+			} else {
+				add_poll(fds, &nfds, mroute6);
+				add_poll(fds, &nfds, pim6);
+			}
 		}
 	}
+	if (mroute6 < 0)
+		logger(LOG_WARNING, errno, "no IPv6 support");
 
 	if (mroute4 < 0 && mroute6 < 0) {
 		logger(LOG_ERR, 0, "multicast routing unavailable");
@@ -376,8 +389,7 @@ int main(int argc, char **argv)
 
 			if (fds[i].revents & POLLIN) {
 				ret = _recvfrom(fds[i].fd, buf, SOCK_BUFLEN, 0,
-						(struct sockaddr *)&src_addr,
-						&addrlen);
+						(struct sockaddr *)&src_addr, &addrlen);
 				if (ret == -1) {
 					logger(LOG_WARNING, errno, "recvfrom()");
 					continue;
@@ -385,10 +397,12 @@ int main(int argc, char **argv)
 
 				if (fds[i].fd == pim4 || fds[i].fd == pim6)
 					pim_recv(fds[i].fd, buf, ret,
-							&src_addr, addrlen);
+							&src_addr, addrlen,
+							src_ifindex);
 				else
 					mld_recv(fds[i].fd, buf, ret,
-							&src_addr, addrlen);
+							&src_addr, addrlen,
+							src_ifindex);
 			}
 		}
 	}

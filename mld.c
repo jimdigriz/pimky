@@ -32,7 +32,8 @@ void mld_query_send(void)
 }
 
 void mld_recv(int sock, void *buf, int len,
-		struct sockaddr_storage *src_addr, socklen_t addrlen)
+		struct sockaddr_storage *src_addr, socklen_t addrlen,
+		unsigned int src_ifindex)
 {
 	struct ip	*ip;
 	struct igmp	*igmp;

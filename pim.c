@@ -41,7 +41,7 @@
 int pim_init(int sock)
 {
 	int			type, sl, loop;
-	int			v;
+	int			v = 1;
 	int			ret;
 	struct icmp6_filter	filter;
 	int			pim;
@@ -54,7 +54,6 @@ int pim_init(int sock)
 	if (sl < 0)
 		return sl;
 
-	v = 1;
 	switch (type) {
 	case AF_INET:
 		ret = setsockopt(sock, sl, MRT_INIT, &v, sizeof(v));
@@ -105,6 +104,10 @@ int pim_init(int sock)
 		logger(LOG_ERR, errno, "socket(SOCK_RAW, IPPROTO_PIM)");
 		goto exit;
 	}
+
+	ret = pktinfo(sock);
+	if (ret < 0)
+		goto pim;
 
 	if (sl == IPPROTO_IP)
 		loop = IP_MULTICAST_LOOP;
@@ -431,7 +434,8 @@ free:
 }
 
 void pim_recv(int sock, void *buf, int len,
-		struct sockaddr_storage *src_addr, socklen_t addrlen)
+		struct sockaddr_storage *src_addr, socklen_t addrlen,
+		unsigned int src_ifindex)
 {
 	struct ip	*ip;
 	struct pimhdr	*pim;

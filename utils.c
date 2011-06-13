@@ -128,6 +128,52 @@ int socktype(int sock)
 	return addr.sa_family;
 }
 
+int family_to_level(int type)
+{
+	switch (type) {
+	case AF_INET:
+		return IPPROTO_IP;
+	case AF_INET6:
+		return IPPROTO_IPV6;
+	default:
+		logger(LOG_ERR, 0, "%s(): unknown socket type: %d",
+				__func__, type);
+		return -EX_SOFTWARE;
+	}
+}
+
+int pktinfo(int sock)
+{
+	int type, ret;
+	int v = 1;
+
+	type = socktype(sock);
+	if (type < 0)
+		return type;
+
+	switch (type) {
+	case AF_INET:
+		ret = setsockopt(sock, IPPROTO_IP, IP_PKTINFO,
+					&v, sizeof(v));
+		break;
+	case AF_INET6:
+		ret = setsockopt(sock, IPPROTO_IPV6, IPV6_RECVPKTINFO,
+					&v, sizeof(v));
+		break;
+	default:
+		logger(LOG_ERR, 0, "%s(): unknown socket type: %d",
+				__func__, type);
+		return -EX_SOFTWARE;
+	}
+
+	if (ret < 0) {
+		logger(LOG_ERR, errno, "setsockopt(PKTINFO)");
+		return -EX_OSERR;
+	}
+
+	return 0;
+}
+
 /* when checking, pass header and check for return value of zero */
 uint16_t in_cksum(const void *buf, int len)
 {
@@ -145,20 +191,6 @@ uint16_t in_cksum(const void *buf, int len)
 	sum  = ~sum & 0xffff;
 
 	return sum;
-}
-
-int family_to_level(int type)
-{
-	switch (type) {
-	case AF_INET:
-		return IPPROTO_IP;
-	case AF_INET6:
-		return IPPROTO_IPV6;
-	default:
-		logger(LOG_ERR, 0, "%s(): unknown socket type: %d",
-				__func__, type);
-		return -EX_SOFTWARE;
-	}
 }
 
 /* rand() might return not enough bits to make use of */
