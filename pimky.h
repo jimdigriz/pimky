@@ -29,6 +29,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <net/if.h>
+#include <time.h>
 
 #define	VERSION				"2011053100"
 
@@ -150,6 +151,7 @@ struct pim_neigh {
 	unsigned short		num_addr;
 	union sockstore		*addr;
 
+	time_t			last_seen;
 	uint32_t		dr_priority;
 	uint32_t		generation_id;
 };
