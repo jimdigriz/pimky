@@ -94,7 +94,7 @@ int parse_args(int argc, char **argv)
 		return -EX_SOFTWARE;
 	case 'h':
 	default:
-		printf("Usage: %s [-h] [-V] [options] [(-q|-v)]\n",
+		printf("Usage: %s [-h] [-V] [options] [(-v|-q)]\n",
 				basename(argv[0]));
 		printf("Slimline PIM Routing Daemon for IPv4 and IPv6\n"
 			"\n"
