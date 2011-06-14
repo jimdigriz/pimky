@@ -136,7 +136,8 @@ int route_getsrc(int ifi, struct sockaddr_storage *dst,
 		goto exit;
 	}
 
-	ret = _recvmsg(rtnetlink_socket, buf, sizeof(buf), 0, NULL, NULL, 0, NULL);
+	ret = recvfromto(rtnetlink_socket, buf, sizeof(buf), 0,
+				NULL, NULL, 0, NULL);
 	if (ret == -1) {
 		logger(LOG_ERR, errno, "unable to receive routing response");
 		goto exit;

@@ -73,7 +73,7 @@ free:
 /* palmed wisdom from http://stackoverflow.com/questions/1674162/ */
 #define RETRY_ERROR(x) (x == EAGAIN || x == EWOULDBLOCK || x == EINTR)
 
-ssize_t _recvmsg(int sockfd, void *buf, size_t len, int flags,
+ssize_t recvfromto(int sockfd, void *buf, size_t len, int flags,
 		struct sockaddr *from, struct sockaddr *to,
 		socklen_t *addrlen, unsigned int *from_ifindex)
 {
@@ -120,12 +120,14 @@ ssize_t _recvmsg(int sockfd, void *buf, size_t len, int flags,
 				&& cmsg->cmsg_type == IP_PKTINFO) {
 			struct in_pktinfo *i = (struct in_pktinfo *) CMSG_DATA(cmsg);
 			((struct sockaddr_in *)to)->sin_addr = i->ipi_addr;
+			*from_ifindex = i->ipi_ifindex;
 			to->sa_family = AF_INET;
 		}
 		else if (cmsg->cmsg_level == IPPROTO_IPV6
 				&& cmsg->cmsg_type == IPV6_PKTINFO) {
 			struct in6_pktinfo *i = (struct in6_pktinfo *) CMSG_DATA(cmsg);
 			((struct sockaddr_in6 *)to)->sin6_addr = i->ipi6_addr;
+			*from_ifindex = i->ipi6_ifindex;
 			to->sa_family = AF_INET6;
 		}
 	}

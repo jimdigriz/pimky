@@ -199,7 +199,7 @@ struct iface_info {
 
 /* utils.c */
 void logger(int severity, int syserr, const char *format, ...);
-ssize_t _recvmsg(int, void *, size_t, int,
+ssize_t recvfromto(int, void *, size_t, int,
 		struct sockaddr *, struct sockaddr *,
 		socklen_t *, unsigned int *);
 ssize_t _sendto(int, const void *, size_t, int,

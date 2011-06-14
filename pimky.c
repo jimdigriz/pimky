@@ -388,7 +388,7 @@ int main(int argc, char **argv)
 				continue;
 
 			if (fds[i].revents & POLLIN) {
-				ret = _recvmsg(fds[i].fd, buf, SOCK_BUFLEN, 0,
+				ret = recvfromto(fds[i].fd, buf, SOCK_BUFLEN, 0,
 						(struct sockaddr *)&from,
 						(struct sockaddr *)&to,
 						&addrlen, &from_ifindex);
