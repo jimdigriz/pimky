@@ -28,22 +28,25 @@
 
 void mld_query_send(void)
 {
-	fprintf(stderr, "sent igmp/mld query\n");
+	logger(LOG_INFO, 0, "[TODO] sending IGMP/MLD query");
 }
 
 void mld_recv(int sock, void *buf, int len,
 		struct sockaddr_storage *from,
 		struct sockaddr_storage *to,
 		socklen_t addrlen,
-		unsigned int src_ifindex)
+		unsigned int from_ifindex)
 {
 	struct ip	*ip;
 	struct igmp	*igmp;
+	char		ifname[IFNAMSIZ];
 
-	printf("called %s\n", __func__);
+	assert(if_indextoname(from_ifindex, ifname));
 
 	switch (from->ss_family) {
 	case AF_INET:
+		logger(LOG_INFO, 0, "IGMP/MLD IPv4 on %s", ifname);
+
 		ip	= buf;
 
 		assert(ip->ip_v == 4);
@@ -63,11 +66,12 @@ void mld_recv(int sock, void *buf, int len,
 
 		switch (igmp->igmp_type) {
 		default:
-			printf("got unknown code %d\n", igmp->igmp_type);
+			logger(LOG_WARNING, 0, " - unknown IGMP code %d", igmp->igmp_type);
 		}
 
 		break;
 	case AF_INET6:
+		logger(LOG_INFO, 0, "IGMP/MLD IPv6 on %s", ifname);
 		break;
 	default:
 		logger(LOG_WARNING, 0, "%s(): unknown socket type: %d",

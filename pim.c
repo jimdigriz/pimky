@@ -303,11 +303,11 @@ void pim_hello_send(void)
 	struct ip6_phdr		*ip6;
 	union sockstore		src;
 
-	fprintf(stderr, "sent pim hello\n");
-
 	memset(&mreq, 0, sizeof(mreq));
 
 	for (ifm = iface_map.next; ifm != NULL; ifm = ifm->next) {
+		logger(LOG_INFO, 0, "sending PIM Hello on %s", ifm->name);
+
 		len	= sizeof(struct pimhdr);
 
 		pimpkt = malloc(len);
@@ -374,6 +374,7 @@ void pim_hello_send(void)
 			if (ret == -1)
 				logger(LOG_ERR, errno, "unable to send pim4"
 							" on %s", ifm->name);
+			logger(LOG_DEBUG, 0, " - sent IPv4");
 free_v4:
 			free(lpimpkt);
 exit_v4:
@@ -423,6 +424,7 @@ exit_v4:
 			if (ret == -1)
 				logger(LOG_ERR, errno, "unable to send pim6"
 							" on %s", ifm->name);
+			logger(LOG_DEBUG, 0, " - sent IPv6");
 free_v6:
 			free(lpimpkt);
 exit_v6:
@@ -437,15 +439,18 @@ void pim_recv(int sock, void *buf, int len,
 		struct sockaddr_storage *from,
 		struct sockaddr_storage *to,
 		socklen_t addrlen,
-		unsigned int src_ifindex)
+		unsigned int from_ifindex)
 {
 	struct ip	*ip;
 	struct pimhdr	*pim;
+	char		ifname[IFNAMSIZ];
 
-	printf("called %s\n", __func__);
+	assert(if_indextoname(from_ifindex, ifname));
 
 	switch (from->ss_family) {
 	case AF_INET:
+		logger(LOG_INFO, 0, "PIM IPv4 on %s", ifname);
+
 		ip	= buf;
 
 		assert(ip->ip_v == 4);
@@ -468,14 +473,15 @@ void pim_recv(int sock, void *buf, int len,
 
 		switch (pim->type) {
 		case PIM_HELLO:
-			printf("got a PIM Hello\n");
+			logger(LOG_NOTICE, 0, " - PIM Hello");
 			break;
 		default:
-			printf("got unknown code %d\n", pim->type);
+			logger(LOG_WARNING, 0, " - unknown PIM code %d", pim->type);
 		}
 
 		break;
 	case AF_INET6:
+		logger(LOG_INFO, 0, "PIM IPv6 on %s", ifname);
 		break;
 	default:
 		logger(LOG_WARNING, 0, "%s(): unknown socket type: %d",
