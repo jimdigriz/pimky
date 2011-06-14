@@ -227,7 +227,7 @@ int pim_init(int);
 int pim_shutdown(int);
 int pim_hello_opt_add(unsigned char **, size_t, unsigned int,
 		struct sockaddr_storage *, struct iface_map *);
-void pim_hello_send(void);
+void pim_hello_send(struct iface_map *);
 void pim_recv(int, void *, int,
 		struct sockaddr_storage *,
 		struct sockaddr_storage *,

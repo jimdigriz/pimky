@@ -172,14 +172,14 @@ void sig_handler(int sig)
 		if (ret < 0)
 			goto exit;
 
-		pim_hello_send();
+		pim_hello_send(NULL);
 		return;
 	}
 
 exit:
 	running = 0;
 	signals(SIG_IGN);
-	pim_hello_send();
+	pim_hello_send(NULL);
 }
 
 int prime_timers(timer_t *mld, timer_t *pim)

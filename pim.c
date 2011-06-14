@@ -291,9 +291,8 @@ int pim_hello_opt_add(unsigned char **buf, size_t len, unsigned int opt,
 	return len + 2*sizeof(uint16_t) + optlen;
 }
 
-void pim_hello_send(void)
+void pim_hello_send(struct iface_map *ifm)
 {
-	struct iface_map	*ifm;
 	union sockstore		store;
 	int			ret;
 	unsigned char		*pimpkt, *lpimpkt;
@@ -305,7 +304,10 @@ void pim_hello_send(void)
 
 	memset(&mreq, 0, sizeof(mreq));
 
-	for (ifm = iface_map.next; ifm != NULL; ifm = ifm->next) {
+	if (!ifm)
+		ifm = iface_map.next;
+
+	for (; ifm != NULL; ifm = ifm->next) {
 		logger(LOG_INFO, 0, "sending PIM Hello on %s", ifm->name);
 
 		len	= sizeof(struct pimhdr);
