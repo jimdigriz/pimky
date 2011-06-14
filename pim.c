@@ -224,13 +224,13 @@ int pim_hello_opt_add(unsigned char **buf, size_t len, unsigned int opt,
 			return len;
 		break;
 	default:
-		logger(LOG_ERR, 0, "unknown PIM hello option: %d", opt);
+		logger(LOG_ERR, 0, " - unknown PIM hello option: %d", opt);
 		return -EX_SOFTWARE;
 	}
 
 	*buf = realloc(*buf, len + 2*sizeof(uint16_t) + optlen);
 	if (*buf == NULL) {
-		logger(LOG_ERR, errno, "realloc() for pimopt appending");
+		logger(LOG_ERR, errno, " - failed realloc() for pimopt appending");
 		return -EX_OSERR;
 	}
 
@@ -339,7 +339,7 @@ void pim_hello_send(struct iface_map *ifm)
 		if (ifm->ip.v4) {
 			lpimpkt	= malloc(len);
 			if (lpimpkt == NULL) {
-				logger(LOG_ERR, errno, "malloc() for v4 pim hello packet");
+				logger(LOG_ERR, errno, " - failed malloc() for IPv4");
 				goto exit_v4;
 			}
 			memcpy(lpimpkt, pimpkt, len);
@@ -374,9 +374,9 @@ void pim_hello_send(struct iface_map *ifm)
 				ret = _sendto(pim4, pim, llen, 0,
 						&store.sa, sizeof(store));
 			if (ret == -1)
-				logger(LOG_ERR, errno, "unable to send pim4"
-							" on %s", ifm->name);
-			logger(LOG_DEBUG, 0, " - sent IPv4");
+				logger(LOG_ERR, errno, " - failed to send IPv4");
+			else
+				logger(LOG_DEBUG, 0, " - sent IPv4");
 free_v4:
 			free(lpimpkt);
 exit_v4:
@@ -385,7 +385,7 @@ exit_v4:
 		if (ifm->ip.v6) {
 			lpimpkt	= malloc(sizeof(struct ip6_phdr) + len);
 			if (lpimpkt == NULL) {
-				logger(LOG_ERR, errno, "malloc() for v6 pim hello packet");
+				logger(LOG_ERR, errno, " - failed malloc() for IPv6");
 				goto exit_v6;
 			}
 			memcpy(&lpimpkt[sizeof(struct ip6_phdr)], pimpkt, len);
@@ -424,9 +424,9 @@ exit_v4:
 			ret = _sendto(pim6, pim, llen - sizeof(struct ip6_phdr), 0,
 					&store.sa, sizeof(store));
 			if (ret == -1)
-				logger(LOG_ERR, errno, "unable to send pim6"
-							" on %s", ifm->name);
-			logger(LOG_DEBUG, 0, " - sent IPv6");
+				logger(LOG_ERR, errno, " - failed to send IPv6");
+			else
+				logger(LOG_DEBUG, 0, " - sent IPv6");
 free_v6:
 			free(lpimpkt);
 exit_v6:
