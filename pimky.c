@@ -102,11 +102,11 @@ int parse_args(int argc, char **argv)
 			"  -u name	drop privileges to user (default: '%s')\n"
 			"  -g name	drop privileges to group (default: '%s')\n"
 			"\n"
-			"  -q		be quieter\n"
 			"  -v		be more verbose\n"
+			"  -q		be quieter\n"
 			"\n"
-			"  -h		display this help and exit\n"
 			"  -V		print version information and exit\n", UID, GID);
+			"  -h		display this help and exit\n"
 		return -EX_SOFTWARE;
 	}
 
