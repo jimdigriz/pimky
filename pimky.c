@@ -105,8 +105,8 @@ int parse_args(int argc, char **argv)
 			"  -v		be more verbose\n"
 			"  -q		be quieter\n"
 			"\n"
-			"  -V		print version information and exit\n", UID, GID);
-			"  -h		display this help and exit\n"
+			"  -V		print version information and exit\n"
+			"  -h		display this help and exit\n", UID, GID);
 		return -EX_SOFTWARE;
 	}
 
